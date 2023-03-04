@@ -2,6 +2,7 @@ import torch
 from math import pi, factorial
 from time import time
 from itertools import product
+from galopy.schmidt_decompose import rho_entropy
 from galopy.progress_bar import print_progress_bar
 from galopy.population import RandomPopulation, FromFilePopulation
 
@@ -169,15 +170,36 @@ class CircuitSearch:
         else:
             raise Exception("Not implemented yet! Number of success measurements should be 1 so far")
 
+    def __calculate_criteria(self, transforms):
+        # calculating probabilities of states on basis vectors ((1, 0, 0, 0) , (0, 1, 0, 0), ...)
+        # then calculating the maximum difference of these probabilities for each transform
+        new_transforms = transforms.transpose(2, 3).reshape(transforms.size()[0], 4, 4)
+        sums = new_transforms.abs().square().sum(2).sqrt()
+        (values_max, ind1) = sums.max(1)
+        (values_min, ind2) = sums.min(1)
+        basic_states_probabilities_match = torch.ones(transforms.size()[0]).sub(values_max.sub(values_min))
+        # calculate maximum entanglement of states
+        # TODO: OPTIMIZE for torch
+        normalized_states = new_transforms / sums.unsqueeze(-1)
+        entanglement_entropies = torch.tensor(
+            [(1. - min(min([(rho_entropy(vector).abs().item()) for vector in matrix]), 1.)) for matrix in
+             normalized_states])
+
+        return basic_states_probabilities_match, entanglement_entropies, values_min
+
     def __get_fidelity_and_probability(self, population):
         """Given population of circuits, get fidelity and probability for each circuit."""
         transforms = population.construct_transforms(self.input_basic_states, self.output_basic_states)
-        return self.__calculate_fidelity_and_probability(transforms)
+        # return self.__calculate_fidelity_and_probability(transforms)
+        return self.__calculate_criteria(transforms)
 
     def __calculate_fitness(self, population):
         """Compute fitness for each individual in the given population."""
-        fidelities, probabilities = self.__get_fidelity_and_probability(population)
-        return torch.where(fidelities > 0.999, 100. * probabilities, fidelities)
+        # fidelities, probabilities = self.__get_fidelity_and_probability(population)
+        basic_states_probabilities_match, entanglement_entropies, probabilities = self.__get_fidelity_and_probability(population)
+        first_fitness = torch.where(entanglement_entropies > 0.01, 100. * basic_states_probabilities_match, entanglement_entropies)
+        return torch.where(first_fitness > 99., 1000. * probabilities, first_fitness)
+        # return entanglement_entropies
 
     def run(self, min_probability, n_generations, n_offsprings, n_elite,
             source_file=None, result_file=None):
@@ -255,9 +277,12 @@ class CircuitSearch:
             print_progress_bar(best_fitness, length=40, percentage=(i + 1.) / n_generations, reprint=True)
 
             # If circuit with high enough fitness is found, stop
-            if best_fitness >= 100. * min_probability:
+            if best_fitness > 1000. * 0.99:
                 n_generations = i + 1
                 break
+            # if best_fitness >= 100. * min_probability:
+            #     n_generations = i + 1
+            #     break
         print()
 
         # Save result population to file
@@ -271,7 +296,9 @@ class CircuitSearch:
         print("Circuit:")
         best[0].to_loqc_tech("result")
         # best[0].print()
-        f, p = self.__get_fidelity_and_probability(best)
-        print("Fidelity: ", f[0].item())
-        print("Probability: ", p[0].item())
+        basic_states_probabilities_match, entanglement_entropies, pr = self.__get_fidelity_and_probability(best)
+        transforms = best.construct_transforms(self.input_basic_states, self.output_basic_states)
+        print("Transform: ", transforms[0])
+        print("basic_states_probabilities_match: ", basic_states_probabilities_match[0].item())
+        print("entanglement_entropies: ", entanglement_entropies[0].item())
         print(f"Processed {n_generations} generations in {time() - start_time:.2f} seconds")
