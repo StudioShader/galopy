@@ -1,5 +1,7 @@
 from math import pi
 import pandas as pd
+import torch
+from galopy.schmidt_decompose import rho_entropy
 import json
 
 
@@ -36,6 +38,76 @@ class Circuit:
     #         print(elements, ancillas, sep='\n')
     #     else:
     #         print(elements)
+
+    def to_text_file(self, filename, transform, basic_states_probabilities_match, entanglement_entropies, pr):
+        ZX = torch.tensor(
+            [[0.5 + 0j, 0.5 + 0j, 0.5 + 0j, 0.5 + 0j], [0.5 + 0j, 0.5 + 0j, -0.5 + 0j, -0.5 + 0j],
+             [0.5 + 0j, -0.5 + 0j, 0.5 + 0j, -0.5 + 0j], [0.5 + 0j, -0.5 + 0j, -0.5 + 0j, 0.5 + 0j]])
+        XZ = torch.inverse(ZX)
+
+        YX = torch.tensor(
+            [[1 + 0j, 1 + 0j, 1 + 0j, 1 + 0j], [0. + 1j, 0. - 1j, 0. + 1j, 0. - 1j],
+             [0. + 1j, 0. + 1j, 0. - 1j, 0. - 1j], [0. - 1j, 0. + 1j, 0. + 1j, 0. - 1j]])
+        XY = torch.inverse(YX)
+        reshaped = transform.reshape(4, 4)
+        # add result entropy add basic_prob_match add probs
+        new_transforms_Z = reshaped.transpose(1, 0)
+        sums_Z = new_transforms_Z.abs().square().sum(1).sqrt()
+        out_Z = new_transforms_Z / sums_Z
+        reses_Z = [(rho_entropy(vector)) for vector in out_Z]
+        data_Z = {
+            "00": (str(out_Z[0]), reses_Z[0].abs().item(), str(sums_Z[0])),
+            "10": (str(out_Z[1]), reses_Z[1].abs().item(), str(sums_Z[1])),
+            "01": (str(out_Z[2]), reses_Z[2].abs().item(), str(sums_Z[2])),
+            "11": (str(out_Z[3]), reses_Z[3].abs().item(), str(sums_Z[3]))
+        }
+        print(transform)
+        new_transforms_X = torch.matmul(torch.matmul(ZX, reshaped), XZ).transpose(1, 0)
+        print(new_transforms_X)
+        sums_X = new_transforms_X.abs().square().sum(1).sqrt()
+        print(sums_X)
+        out_X = new_transforms_X / sums_X
+        print(out_X)
+        reses_X = [(rho_entropy(vector)) for vector in out_X]
+        print(reses_X)
+        data_X = {
+            "++": (str(out_X[0]), reses_X[0].abs().item(), str(sums_X[0])),
+            "+-": (str(out_X[1]), reses_X[1].abs().item(), str(sums_X[1])),
+            "-+": (str(out_X[2]), reses_X[2].abs().item(), str(sums_X[2])),
+            "--": (str(out_X[3]), reses_X[3].abs().item(), str(sums_X[3]))
+        }
+        new_transforms_Y = torch.matmul(torch.matmul(YX, reshaped), XY).transpose(1, 0)
+        sums_Y = new_transforms_Y.abs().square().sum(1).sqrt()
+        out_Y = new_transforms_Y / sums_Y
+        reses_Y = [(rho_entropy(vector)) for vector in out_Y]
+        data_Y = {
+            "y1y1": (str(out_Y[0]), reses_Y[0].abs().item(), str(sums_Y[0])),
+            "y1y2-": (str(out_Y[1]), reses_Y[1].abs().item(), str(sums_Y[1])),
+            "y2y1": (str(out_Y[2]), reses_Y[2].abs().item(), str(sums_Y[2])),
+            "y2y2": (str(out_Y[3]), reses_Y[3].abs().item(), str(sums_Y[3]))
+        }
+        with open(filename, 'w') as f:
+            f.write("Minimum probability: " + str(pr[0].item()) + "\n")
+            f.write("Maximum entanglement: " + str(entanglement_entropies[0].item()) + "\n")
+            f.write("Basic_states_probabilities_match: " + str(basic_states_probabilities_match[0].item()) + "\n")
+            f.write("This is the transform matrix of a circuit in Z basis:\n")
+            f.write(str(new_transforms_Z[0]) + "\n")
+            f.write(str(new_transforms_Z[1]) + "\n")
+            f.write(str(new_transforms_Z[2]) + "\n")
+            f.write(str(new_transforms_Z[3]) + "\n")
+            f.write(json.dumps(data_Z, indent=10))
+            f.write("This is the transform matrix of a circuit in X basis:\n")
+            f.write(str(new_transforms_X[0]) + "\n")
+            f.write(str(new_transforms_X[1]) + "\n")
+            f.write(str(new_transforms_X[2]) + "\n")
+            f.write(str(new_transforms_X[3]) + "\n")
+            f.write(json.dumps(data_X, indent=10))
+            f.write("This is the transform matrix of a circuit in Y basis:\n")
+            f.write(str(new_transforms_Y[0]) + "\n")
+            f.write(str(new_transforms_Y[1]) + "\n")
+            f.write(str(new_transforms_Y[2]) + "\n")
+            f.write(str(new_transforms_Y[3]) + "\n")
+            f.write(json.dumps(data_Y, indent=10))
 
     def to_loqc_tech(self, filename):
         photon_sources = []
