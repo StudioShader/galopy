@@ -30,6 +30,7 @@ if __name__ == "__main__":
         file_number += 1
     # Create an instance of search
     search = CircuitSearch('cpu', matrix, input_basic_states=basic_states, depth=3,
-                           n_ancilla_modes=2, n_ancilla_photons=0, search_type="pure_entanglement", file_number=file_number)
+                           n_ancilla_modes=2, n_ancilla_photons=0, search_type="pure_entanglement",
+                           entanglement_all_bases=True, file_number=file_number)
     # Launch the search!
     search.run(min_probability, n_generations, n_offsprings, n_elite)

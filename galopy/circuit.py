@@ -40,20 +40,24 @@ class Circuit:
     #         print(elements)
 
     def to_text_file(self, filename, transform, basic_states_probabilities_match, entanglement_entropies, pr):
+        # just for testing
+        transform = transform.conj()
+        # just for testing
+
         ZX = torch.tensor(
-            [[0.5 + 0j, 0.5 + 0j, 0.5 + 0j, 0.5 + 0j], [0.5 + 0j, 0.5 + 0j, -0.5 + 0j, -0.5 + 0j],
-             [0.5 + 0j, -0.5 + 0j, 0.5 + 0j, -0.5 + 0j], [0.5 + 0j, -0.5 + 0j, -0.5 + 0j, 0.5 + 0j]])
+            [[0.5 + 0j, 0.5 + 0j, 0.5 + 0j, 0.5 + 0j], [0.5 + 0j, -0.5 + 0j, 0.5 + 0j, -0.5 + 0j],
+             [0.5 + 0j, 0.5 + 0j, -0.5 + 0j, -0.5 + 0j], [0.5 + 0j, -0.5 + 0j, -0.5 + 0j, 0.5 + 0j]])
         XZ = torch.inverse(ZX)
 
-        YX = torch.tensor(
-            [[1 + 0j, 1 + 0j, 1 + 0j, 1 + 0j], [0. + 1j, 0. - 1j, 0. + 1j, 0. - 1j],
-             [0. + 1j, 0. + 1j, 0. - 1j, 0. - 1j], [0. - 1j, 0. + 1j, 0. + 1j, 0. - 1j]])
-        XY = torch.inverse(YX)
+        ZY = torch.tensor(
+            [[0.5 + 0j, 0.5 + 0j, 0.5 + 0j, 0.5 + 0j], [0. + 0.5j, 0. - 0.5j, 0. + 0.5j, 0. - 0.5j],
+             [0. + 0.5j, 0. + 0.5j, 0. - 0.5j, 0. - 0.5j], [-0.5 + 0j, 0.5 + 0j, 0.5 + 0j, -0.5 + 0j]])
+        YZ = torch.inverse(ZY)
         reshaped = transform.reshape(4, 4)
         # add result entropy add basic_prob_match add probs
         new_transforms_Z = reshaped.transpose(1, 0)
         sums_Z = new_transforms_Z.abs().square().sum(1).sqrt()
-        out_Z = new_transforms_Z / sums_Z
+        out_Z = new_transforms_Z / sums_Z.unsqueeze(-1)
         reses_Z = [(rho_entropy(vector)) for vector in out_Z]
         data_Z = {
             "00": (str(out_Z[0]), reses_Z[0].abs().item(), str(sums_Z[0])),
@@ -62,11 +66,11 @@ class Circuit:
             "11": (str(out_Z[3]), reses_Z[3].abs().item(), str(sums_Z[3]))
         }
         print(transform)
-        new_transforms_X = torch.matmul(torch.matmul(ZX, reshaped), XZ).transpose(1, 0)
+        new_transforms_X = torch.matmul(torch.matmul(XZ, reshaped), ZX).transpose(1, 0)
         print(new_transforms_X)
         sums_X = new_transforms_X.abs().square().sum(1).sqrt()
         print(sums_X)
-        out_X = new_transforms_X / sums_X
+        out_X = new_transforms_X / sums_X.unsqueeze(-1)
         print(out_X)
         reses_X = [(rho_entropy(vector)) for vector in out_X]
         print(reses_X)
@@ -76,13 +80,18 @@ class Circuit:
             "-+": (str(out_X[2]), reses_X[2].abs().item(), str(sums_X[2])),
             "--": (str(out_X[3]), reses_X[3].abs().item(), str(sums_X[3]))
         }
-        new_transforms_Y = torch.matmul(torch.matmul(YX, reshaped), XY).transpose(1, 0)
+        print("NOW Y")
+        new_transforms_Y = torch.matmul(torch.matmul(YZ, reshaped), ZY).transpose(1, 0)
+        print(new_transforms_Y)
         sums_Y = new_transforms_Y.abs().square().sum(1).sqrt()
-        out_Y = new_transforms_Y / sums_Y
+        print(sums_Y)
+        out_Y = new_transforms_Y / sums_Y.unsqueeze(-1)
+        print(out_Y)
         reses_Y = [(rho_entropy(vector)) for vector in out_Y]
+        print(reses_Y)
         data_Y = {
             "y1y1": (str(out_Y[0]), reses_Y[0].abs().item(), str(sums_Y[0])),
-            "y1y2-": (str(out_Y[1]), reses_Y[1].abs().item(), str(sums_Y[1])),
+            "y1y2": (str(out_Y[1]), reses_Y[1].abs().item(), str(sums_Y[1])),
             "y2y1": (str(out_Y[2]), reses_Y[2].abs().item(), str(sums_Y[2])),
             "y2y2": (str(out_Y[3]), reses_Y[3].abs().item(), str(sums_Y[3]))
         }

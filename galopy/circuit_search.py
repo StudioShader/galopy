@@ -1,15 +1,17 @@
 import torch
+import numpy as np
 from math import pi, factorial
 from time import time
 from itertools import product
-from galopy.schmidt_decompose import rho_entropy
+from galopy.schmidt_decompose import rho_entropy, maximum_entanglement, CONST_ENTANGLEMENT_THRESHOLD
 from galopy.progress_bar import print_progress_bar
 from galopy.population import RandomPopulation, FromFilePopulation
 
 
 class CircuitSearch:
     def __init__(self, device: str, matrix, input_basic_states, output_basic_states=None, depth=1,
-                 n_ancilla_modes=0, n_ancilla_photons=0, n_success_measurements=1, search_type="probablities", file_number=0):
+                 n_ancilla_modes=0, n_ancilla_photons=0, n_success_measurements=1, search_type="probablities",
+                 file_number=0, entanglement_all_bases=False, entanglement_cut=0.01):
         """
         Algorithm searching a circuit.
         Parameters:
@@ -34,6 +36,8 @@ class CircuitSearch:
         """
         self.search_type = search_type
         self.file_number = file_number
+        self.entanglement_all_bases = entanglement_all_bases
+        self.entanglement_cut = entanglement_cut
         if n_ancilla_modes == 0 and n_ancilla_photons > 0:
             raise Exception("If number of ancilla modes is zero, number of ancilla photons must be zero as well")
 
@@ -80,14 +84,14 @@ class CircuitSearch:
 
         # Init aux matricies
         self.ZX = torch.tensor(
-            [[0.5 + 0j, 0.5 + 0j, 0.5 + 0j, 0.5 + 0j], [0.5 + 0j, 0.5 + 0j, -0.5 + 0j, -0.5 + 0j],
-             [0.5 + 0j, -0.5 + 0j, 0.5 + 0j, -0.5 + 0j], [0.5 + 0j, -0.5 + 0j, -0.5 + 0j, 0.5 + 0j]])
+            [[0.5 + 0j, 0.5 + 0j, 0.5 + 0j, 0.5 + 0j], [0.5 + 0j, -0.5 + 0j, 0.5 + 0j, -0.5 + 0j],
+             [0.5 + 0j, 0.5 + 0j, -0.5 + 0j, -0.5 + 0j], [0.5 + 0j, -0.5 + 0j, -0.5 + 0j, 0.5 + 0j]])
         self.XZ = torch.inverse(self.ZX)
 
-        self.YX = torch.tensor(
-            [[1 + 0j, 1 + 0j, 1 + 0j, 1 + 0j], [0. + 1j, 0. - 1j, 0. + 1j, 0. - 1j],
-             [0. + 1j, 0. + 1j, 0. - 1j, 0. - 1j], [0. - 1j, 0. + 1j, 0. + 1j, 0. - 1j]])
-        self.XY = torch.inverse(self.YX)
+        self.ZY = torch.tensor(
+            [[0.5 + 0j, 0.5 + 0j, 0.5 + 0j, 0.5 + 0j], [0. + 0.5j, 0. - 0.5j, 0. + 0.5j, 0. - 0.5j],
+             [0. + 0.5j, 0. + 0.5j, 0. - 0.5j, 0. - 0.5j], [-0.5 + 0j, 0.5 + 0j, 0.5 + 0j, -0.5 + 0j]])
+        self.YZ = torch.inverse(self.ZY)
 
         # # Init indices for flexible slicing
         # self._start_idx_rz_angles = 0
@@ -186,8 +190,12 @@ class CircuitSearch:
             raise Exception("Not implemented yet! Number of success measurements should be 1 so far")
 
     def __calculate_criteria(self, transforms):
+        # just for testing
+        transforms = transforms.conj()
+        # just for testing
         # calculating probabilities of states on basis vectors ((1, 0, 0, 0) , (0, 1, 0, 0), ...) and other bases
         # then calculating the maximum difference of these probabilities for each transform in each bases
+        N = transforms.size()[0]
         reshaped = transforms.reshape(transforms.size()[0], 4, 4)
         new_transforms = reshaped.transpose(1, 2)
         sums = new_transforms.abs().square().sum(2).sqrt()
@@ -196,13 +204,17 @@ class CircuitSearch:
         basic_states_probabilities_match_X = torch.ones(transforms.size()[0]).sub(values_max1.sub(values_min1))
         basic_states_probabilities_match_result = basic_states_probabilities_match_X
         minimum = values_min1
+        new_transforms_Z = None
+        sums_Z = None
+        new_transforms_Y = None
+        sums_Y = None
         if self.search_type == "probabilities":
-            new_transforms_Z = torch.matmul(torch.matmul(self.ZX, reshaped), self.XZ).transpose(1, 2)
+            new_transforms_Z = torch.matmul(torch.matmul(self.XZ, reshaped), self.ZX).transpose(1, 2)
             sums_Z = new_transforms_Z.abs().square().sum(2).sqrt()
             (values_max2, ind1) = sums_Z.max(1)
             (values_min2, ind2) = sums_Z.min(1)
             basic_states_probabilities_match_Z = torch.ones(transforms.size()[0]).sub(values_max2.sub(values_min2))
-            new_transforms_Y = torch.matmul(torch.matmul(self.YX, reshaped), self.XY).transpose(1, 2)
+            new_transforms_Y = torch.matmul(torch.matmul(self.YZ, reshaped), self.ZY).transpose(1, 2)
             sums_Y = new_transforms_Y.abs().square().sum(2).sqrt()
             (values_max3, ind1) = sums_Y.max(1)
             (values_min3, ind2) = sums_Y.min(1)
@@ -217,6 +229,53 @@ class CircuitSearch:
         entanglement_entropies = torch.tensor(
             [(1. - min(min([(rho_entropy(vector).abs().item()) for vector in matrix]), 1.)) for matrix in
              normalized_states])
+        if self.entanglement_all_bases:
+            if new_transforms_Z is not None:
+                normalized_states_Z = new_transforms_Z / sums_Z.unsqueeze(-1)
+                normalized_states_Y = new_transforms_Y / sums_Y.unsqueeze(-1)
+                entanglement_entropies_Z = torch.tensor(
+                    [(1. - min(min([(rho_entropy(vector).abs().item()) for vector in matrix]), 1.)) for matrix in
+                     normalized_states_Z])
+                entanglement_entropies_Y = torch.tensor(
+                    [(1. - min(min([(rho_entropy(vector).abs().item()) for vector in matrix]), 1.)) for matrix in
+                     normalized_states_Y])
+                entanglement_entropies = torch.maximum(entanglement_entropies, torch.maximum(entanglement_entropies_Z,
+                                                                                             entanglement_entropies_Y))
+            else:
+                # add optimizations
+                new_transforms_Z = torch.matmul(torch.matmul(self.XZ, reshaped), self.ZX).transpose(1, 2)
+                sums_Z = new_transforms_Z.abs().square().sum(2).sqrt()
+                new_transforms_Y = torch.matmul(torch.matmul(self.YZ, reshaped), self.ZY).transpose(1, 2)
+                sums_Y = new_transforms_Y.abs().square().sum(2).sqrt()
+                normalized_states_Z = new_transforms_Z / sums_Z.unsqueeze(-1)
+                normalized_states_Y = new_transforms_Y / sums_Y.unsqueeze(-1)
+                if self.search_type == "pure_entanglement":
+                    entanglement_entropies_Z = torch.tensor(
+                        [([(rho_entropy(vector).abs().item()) for vector in matrix]) for matrix in
+                         normalized_states_Z])
+                    entanglement_entropies_Y = torch.tensor(
+                        [([(rho_entropy(vector).abs().item()) for vector in matrix]) for matrix in
+                         normalized_states_Y])
+                    entanglement_entropies = torch.tensor(
+                        [([(rho_entropy(vector).abs().item()) for vector in matrix]) for matrix in
+                         normalized_states])
+                    result_Y = torch.stack((entanglement_entropies_Y, sums_Y), dim=2)
+                    result_Z = torch.stack((entanglement_entropies_Z, sums_Z), dim=2)
+                    result_X = torch.stack((entanglement_entropies, sums), dim=2)
+                    mass_res = torch.cat((result_Y, result_Z, result_X), dim=1)
+                    (entanglements, probs) = np.split(np.array([maximum_entanglement(matrix) for matrix in mass_res]),
+                                                      2, axis=1)
+                    return basic_states_probabilities_match_result, torch.ones(1200) - torch.tensor(
+                        entanglements).resize(N), torch.tensor(probs).resize(N)
+                entanglement_entropies_Z = torch.tensor(
+                    [(1. - min(min([(rho_entropy(vector).abs().item()) for vector in matrix]), 1.)) for matrix in
+                     normalized_states_Z])
+                entanglement_entropies_Y = torch.tensor(
+                    [(1. - min(min([(rho_entropy(vector).abs().item()) for vector in matrix]), 1.)) for matrix in
+                     normalized_states_Y])
+                entanglement_entropies = torch.maximum(entanglement_entropies, torch.maximum(entanglement_entropies_Z,
+                                                                                             entanglement_entropies_Y))
+                # entanglement_entropies
 
         return basic_states_probabilities_match_result, entanglement_entropies, minimum
 
@@ -233,11 +292,12 @@ class CircuitSearch:
         basic_states_probabilities_match, entanglement_entropies, probabilities = self.__get_fidelity_and_probability(
             population)
         if self.search_type == "probabilities" or self.search_type == "one_axis_probability":
-            first_fitness = torch.where(entanglement_entropies > 0.01, 100. * basic_states_probabilities_match,
+            first_fitness = torch.where(entanglement_entropies > self.entanglement_cut,
+                                        100. * basic_states_probabilities_match,
                                         entanglement_entropies)
             return torch.where(first_fitness > 99., 1000. * probabilities, first_fitness)
         elif self.search_type == "pure_entanglement":
-            return torch.where(entanglement_entropies > 0.4, 1000. * probabilities, entanglement_entropies)
+            return torch.where(entanglement_entropies > CONST_ENTANGLEMENT_THRESHOLD, 1000. * probabilities, entanglement_entropies)
 
         # return entanglement_entropies
 
@@ -341,7 +401,9 @@ class CircuitSearch:
         basic_states_probabilities_match, entanglement_entropies, pr = self.__get_fidelity_and_probability(best)
         transforms = best.construct_transforms(self.input_basic_states, self.output_basic_states)
         print("Transform: ", transforms[0])
+        print("Probability: ", pr[0].item())
         print("basic_states_probabilities_match: ", basic_states_probabilities_match[0].item())
         print("entanglement_entropies: ", entanglement_entropies[0].item())
         print(f"Processed {n_generations} generations in {time() - start_time:.2f} seconds")
-        best[0].to_text_file("results/" + str(self.search_type) + "/result" + str(N) + ".txt", transforms[0][0], basic_states_probabilities_match, entanglement_entropies, pr)
+        best[0].to_text_file("results/" + str(self.search_type) + "/result" + str(N) + ".txt", transforms[0][0],
+                             basic_states_probabilities_match, entanglement_entropies, pr)

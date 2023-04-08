@@ -17,6 +17,19 @@ def rho_entropy(state):
     return tr_rho_sqrt(partial_trace(rho))
 
 
+CONST_ENTANGLEMENT_THRESHOLD = 0.05
+
+
+def maximum_entanglement(matrix):
+    res_vector = [0, 0]
+    for vector in matrix:
+        if res_vector[0] < CONST_ENTANGLEMENT_THRESHOLD and vector[0] > res_vector[0]:
+            res_vector = vector
+        if vector[0] > CONST_ENTANGLEMENT_THRESHOLD and vector[1] > res_vector[1]:
+            res_vector = vector
+    return res_vector.tolist()
+
+
 # C = [[1., 0., 0., 0.],
 #      [0., 1., 0., 0.],
 #      [0., 0., 0., 1.],
@@ -29,7 +42,7 @@ def rho_entropy(state):
 #                [0., 0., 0., 0.],
 #                [0., 0., 0., 0.],
 #                [0.5, 0., 0., 0.5]])
-# r = 1 / math.sqrt(2)
+r_ = 1 / math.sqrt(2)
 # t = 1 / math.sqrt(3)
 # C1 = torch.tensor([[r, 0, 0, r],
 #                    [0, 0, 0, 0],
@@ -107,18 +120,28 @@ def rho_entropy(state):
 # vector = torch.tensor([0., 1., 0., 0.])
 # print(r)
 ZX = torch.tensor(
-    [[0.5 + 0j, 0.5 + 0j, 0.5 + 0j, 0.5 + 0j], [0.5 + 0j, 0.5 + 0j, -0.5 + 0j, -0.5 + 0j],
-     [0.5 + 0j, -0.5 + 0j, 0.5 + 0j, -0.5 + 0j], [0.5 + 0j, -0.5 + 0j, -0.5 + 0j, 0.5 + 0j]])
+    [[0.5 + 0j, 0.5 + 0j, 0.5 + 0j, 0.5 + 0j], [0.5 + 0j, -0.5 + 0j, 0.5 + 0j, -0.5 + 0j],
+     [0.5 + 0j, 0.5 + 0j, -0.5 + 0j, -0.5 + 0j], [0.5 + 0j, -0.5 + 0j, -0.5 + 0j, 0.5 + 0j]])
 XZ = torch.inverse(ZX)
 
-YX = torch.tensor(
+ZY = torch.tensor(
     [[0.5 + 0j, 0.5 + 0j, 0.5 + 0j, 0.5 + 0j], [0. + 0.5j, 0. - 0.5j, 0. + 0.5j, 0. - 0.5j],
-     [0. + 0.5j, 0. + 0.5j, 0. - 0.5j, 0. - 0.5j], [0. - 0.5j, 0. + 0.5j, 0. + 0.5j, 0. - 0.5j]])
-XY = torch.inverse(YX)
+     [0. + 0.5j, 0. + 0.5j, 0. - 0.5j, 0. - 0.5j], [-0.5 + 0j, 0.5 + 0j, 0.5 + 0j, -0.5 + 0j]])
+YZ = torch.inverse(ZY)
 # print(XY)
 # print(XZ)
-# print(torch.matmul(C1, XZ))
-# print(torch.matmul(XZ, C1))
+C1 = r_ * torch.tensor([[0. + 1j, 0. + 1j, 0., 0.],
+                        [-1., 1., 0., 0.],
+                        [0, 0., 1.j, 1.j],
+                        [0., 0., -1., 1.]])
+C2 = torch.tensor([[0.5 - 0.5j, 0.5 + 0.5j, 0., 0.],
+                   [0., 0., 0., 0.],
+                   [0, 0., 0, 0],
+                   [0., 0., 0.5 - 0.5j, -0.5 -0.5j]])
+# vector2 = torch.
+# print(torch.matmul(C2, ZX))
+# print(torch.matmul(torch.matmul(XZ, C1), ZX))
+# print(torch.matmul(torch.matmul(YZ, C1), ZY))
 # C_C = torch.tensor([[[0.0625, 0.125, 0.1875, 0.25],
 #                      [0.125, 0.1875, 0.25, 0.3125],
 #                      [0.1875, 0.25, 0.3125, 0.375],
@@ -135,11 +158,11 @@ XY = torch.inverse(YX)
 #                      [0.25, 0.3125, 0.375, 0.4375]]])
 # print(torch.matmul(XZ, C_C))
 # print(torch.matmul(C_C, XZ))
-arr = np.array([[0.0349 - 0.0707j, 0.0000 + 0.0000j, -0.4772 - 0.2617j, 0.5187 + 0.3702j],
-       [-0.1078 + 0.6118j, 0.1610 - 0.5347j, 0.0000 + 0.0000j, -0.0726 - 0.0253j],
-       [0.0321 - 0.0699j, 0.0000 + 0.0000j, 0.4970 + 0.2543j, 0.5158 + 0.3462j],
-       [0.0925 - 0.6305j, 0.1420 - 0.5255j, 0.0000 + 0.0000j, 0.0752 + 0.0238j]])
-arrt = arr.transpose().tolist()
+# arr = np.array([[0.0349 - 0.0707j, 0.0000 + 0.0000j, -0.4772 - 0.2617j, 0.5187 + 0.3702j],
+#                 [-0.1078 + 0.6118j, 0.1610 - 0.5347j, 0.0000 + 0.0000j, -0.0726 - 0.0253j],
+#                 [0.0321 - 0.0699j, 0.0000 + 0.0000j, 0.4970 + 0.2543j, 0.5158 + 0.3462j],
+#                 [0.0925 - 0.6305j, 0.1420 - 0.5255j, 0.0000 + 0.0000j, 0.0752 + 0.0238j]])
+# arrt = arr.transpose().tolist()
 array = torch.tensor([[[-0.4194 - 0.2724j, 0.0000 + 0.0000j, 0.0000 + 0.0000j, -0.4491 + 0.2195j],
                        [-4.9442e-01 - 7.4729e-02j, 3.3433e-09 + 1.9452e-08j,
                         0.0000e+00 + 0.0000e+00j, 3.1829e-01 - 3.8556e-01j],
@@ -155,7 +178,9 @@ array = torch.tensor([[[-0.4194 - 0.2724j, 0.0000 + 0.0000j, 0.0000 + 0.0000j, -
                        [-4.0700e-01 - 2.9022e-01j, -1.8673e-05 + 6.0529e-05j,
                         5.7600e-06 + 6.3081e-05j, -4.5842e-01 + 1.9993e-01j]]
                       ])
-array = torch.tensor([arrt, arrt])
+
+
+# array = torch.tensor([arrt, arrt])
 
 
 def some(transforms):
@@ -189,6 +214,7 @@ def some(transforms):
     # calculate maximum entanglement of states
     # TODO: OPTIMIZE for torch
     normalized_states = new_transforms / sums.unsqueeze(-1)
+    print(normalized_states)
     entanglement_entropies = torch.tensor(
         [(1. - min(min([(rho_entropy(vector).abs().item()) for vector in matrix]), 1.)) for matrix in
          normalized_states])
@@ -200,7 +226,35 @@ def some(transforms):
 # print(a)
 # print(b)
 # print(c)
-# vector = torch.tensor([-0.4362 - 0.2701j, -1.2090 - 0.9063j, -1.2090 - 0.9063j, -0.4362 - 0.2702j])
+r_4_1 = 0.25 - 0.25j
+r_4_2 = 0.25 + 0.25j
+vector = torch.tensor([r_4_1, r_4_2, r_4_2, r_4_1])
+# print(torch.matmul(ZX, vector))
+# new_transforms_X = torch.tensor([[ 0.3929+0.1822j, -0.4314-0.0539j, -0.4369-0.0572j,  0.3880+0.1942j],
+#         [-0.0881-0.2283j, -0.2224+0.0986j, -0.2171+0.1028j, -0.0833-0.2394j],
+#         [-0.0276-0.2434j, -0.2434+0.0044j, -0.2399+0.0048j, -0.0207-0.2523j],
+#         [ 0.2734-0.3432j,  0.3686-0.2378j,  0.3652-0.2390j,  0.2667-0.3351j]])
+# sums_X = new_transforms_X.abs().square().sum(1).sqrt()
+# out_X = new_transforms_X / vector
+# print(out_X)
 # print("res: ", vector.abs().square().sum(0).sqrt())
 # print(rho_entropy(vector))
 # print(0.7853* 0.7853)
+
+array2 = torch.tensor([[1, 2, 3], [11, 22, 33], [111, 222, 333]])
+array3 = torch.tensor([[1, 2, 3], [11, 22, 33], [111, 222, 333]])
+array4 = torch.tensor([[[1, 1],
+                        [2, 2]],
+
+                       [[11, 11],
+                        [22, 22]],
+
+                       [[111, 111],
+                        [222, 222]]])
+
+# print(torch.stack((array2, array3), dim=2))
+# (a, b) = np.split(np.array([maximum_entanglement(matrix) for matrix in array4]), 2, axis=1)
+# print(torch.tensor(a))
+# print(torch.tensor(b))
+# vector4 = torch.tensor([[1,2], [2, 3], [3, 4]])
+# print(array4/vector4.unsqueeze(-1))
