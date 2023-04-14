@@ -250,23 +250,40 @@ class CircuitSearch:
                 normalized_states_Z = new_transforms_Z / sums_Z.unsqueeze(-1)
                 normalized_states_Y = new_transforms_Y / sums_Y.unsqueeze(-1)
                 if self.search_type == "pure_entanglement":
-                    entanglement_entropies_Z = torch.tensor(
-                        [([(rho_entropy(vector).abs().item()) for vector in matrix]) for matrix in
-                         normalized_states_Z])
-                    entanglement_entropies_Y = torch.tensor(
-                        [([(rho_entropy(vector).abs().item()) for vector in matrix]) for matrix in
-                         normalized_states_Y])
-                    entanglement_entropies = torch.tensor(
-                        [([(rho_entropy(vector).abs().item()) for vector in matrix]) for matrix in
-                         normalized_states])
-                    result_Y = torch.stack((entanglement_entropies_Y, sums_Y), dim=2)
-                    result_Z = torch.stack((entanglement_entropies_Z, sums_Z), dim=2)
-                    result_X = torch.stack((entanglement_entropies, sums), dim=2)
-                    mass_res = torch.cat((result_Y, result_Z, result_X), dim=1)
-                    (entanglements, probs) = np.split(np.array([maximum_entanglement(matrix) for matrix in mass_res]),
-                                                      2, axis=1)
-                    return basic_states_probabilities_match_result, torch.ones(1200) - torch.tensor(
-                        entanglements).resize(N), torch.tensor(probs).resize(N)
+                    # print(reshaped)
+                    vectors, _ = reshaped.split([1, 3], dim=1)
+                    vectors = vectors.reshape(N, 4)
+                    # print("SIZE: ",vectors.size())
+                    probs = vectors.abs().square().sum(1).sqrt()
+                    # print("probs size: ", probs.size())
+                    normalized_vectors = vectors / probs.unsqueeze(-1)
+                    x_real = torch.nan_to_num(normalized_vectors.real, nan=0.)
+                    x_imag = torch.nan_to_num(normalized_vectors.imag, nan=0.)
+                    normalized_vectors = torch.view_as_complex(torch.stack([x_real, x_imag], dim=-1))
+                    # print("normalized_vectors size: ", normalized_vectors.size())
+                    entropies = torch.tensor(
+                        [1. - (min(rho_entropy(state).abs().item(), 1.)) for state in normalized_vectors])
+                    # print("entropies: ", entropies.size())
+                    # print("probs: ", probs.size())
+                    return basic_states_probabilities_match_result, entropies, probs
+                    # entanglement_entropies_Z = torch.tensor(
+                    #     [([(rho_entropy(vector).abs().item()) for vector in matrix]) for matrix in
+                    #      normalized_states_Z])
+                    # entanglement_entropies_Y = torch.tensor(
+                    #     [([(rho_entropy(vector).abs().item()) for vector in matrix]) for matrix in
+                    #      normalized_states_Y])
+                    # entanglement_entropies = torch.tensor(
+                    #     [([(rho_entropy(vector).abs().item()) for vector in matrix]) for matrix in
+                    #      normalized_states])
+                    # result_Y = torch.stack((entanglement_entropies_Y, sums_Y), dim=2)
+                    # result_Z = torch.stack((entanglement_entropies_Z, sums_Z), dim=2)
+                    # result_X = torch.stack((entanglement_entropies, sums), dim=2)
+                    # mass_res = torch.cat((result_Y, result_Z, result_X), dim=1)
+                    # # print(mass_res)
+                    # (entanglements, probs) = np.split(np.array([maximum_entanglement(matrix) for matrix in mass_res]),
+                    #                                   2, axis=1)
+                    # return basic_states_probabilities_match_result, torch.ones(1200) - torch.tensor(
+                    #     entanglements).resize(N), torch.tensor(probs).resize(N)
                 entanglement_entropies_Z = torch.tensor(
                     [(1. - min(min([(rho_entropy(vector).abs().item()) for vector in matrix]), 1.)) for matrix in
                      normalized_states_Z])
@@ -295,9 +312,13 @@ class CircuitSearch:
             first_fitness = torch.where(entanglement_entropies > self.entanglement_cut,
                                         100. * basic_states_probabilities_match,
                                         entanglement_entropies)
+            print(torch.where(first_fitness > 99., 1000. * probabilities, first_fitness))
             return torch.where(first_fitness > 99., 1000. * probabilities, first_fitness)
         elif self.search_type == "pure_entanglement":
-            return torch.where(entanglement_entropies > CONST_ENTANGLEMENT_THRESHOLD, 1000. * probabilities, entanglement_entropies)
+            # print(torch.where(entanglement_entropies > CONST_ENTANGLEMENT_THRESHOLD, 1000. * probabilities,
+            #                   entanglement_entropies))
+            return torch.where(entanglement_entropies > CONST_ENTANGLEMENT_THRESHOLD, 1000. * probabilities,
+                               entanglement_entropies)
 
         # return entanglement_entropies
 

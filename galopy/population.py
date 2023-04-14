@@ -297,8 +297,8 @@ class Population:
         """
         Bring the data to a convenient form.
         """
-        self.bs_angles %= tau
-        self.ps_angles %= tau
+        self.bs_angles %= (tau/2)
+        self.ps_angles %= (tau/2)
 
         self.topologies %= self.n_work_modes
         x = self.topologies[..., 0]
@@ -390,7 +390,9 @@ class Population:
         mask = torch.zeros(n_offsprings, self.depth, dtype=torch.bool, device=self.device)
         mask.scatter_(dim=1, index=separators, value=True)
         mask = torch.cumsum(mask, dim=1).bool().view(-1, self.depth, 1)
-
+        # print(mask)
+        # print(self.bs_angles[moms, ...])
+        # print(self.bs_angles[dads, ...])
         bs_angles = torch.where(mask, self.bs_angles[moms, ...], self.bs_angles[dads, ...])
         ps_angles = self.ps_angles[moms, ...]
         topologies = torch.where(mask, self.topologies[moms, ...], self.topologies[dads, ...])
@@ -501,18 +503,22 @@ class RandomPopulation(Population):
         # else:
         #     self.initial_ancilla_states = torch.tensor([[]], device=device)
         #     self.measurements = torch.tensor([[[]]], device=device)
-        bs_angles = torch.rand(n_individuals, depth, 2, device=device) * tau
-        ps_angles = torch.rand(n_individuals, n_modes, device=device) * tau
+        bs_angles = torch.rand(n_individuals, depth, 2, device=device) * tau/2
+        ps_angles = torch.rand(n_individuals, n_modes, device=device) * tau/2
 
         topologies = torch.randint(0, n_modes, (n_individuals, depth, 2), device=device, dtype=torch.int8)
 
         if n_ancilla_modes > 0:
-            initial_ancilla_states = torch.randint(0, n_ancilla_modes,
-                                                   (n_individuals, n_ancilla_photons),
-                                                   device=device, dtype=torch.int8)
-            measurements = torch.randint(0, n_ancilla_modes,
-                                         (n_individuals, n_success_measurements, n_ancilla_photons),
-                                         device=device, dtype=torch.int8)
+            # initial_ancilla_states = torch.randint(0, n_ancilla_modes,
+            #                                        (n_individuals, n_ancilla_photons),
+            #                                        device=device, dtype=torch.int8)
+            initial_ancilla_states = torch.ones((n_individuals, n_ancilla_photons), device=device, dtype=torch.int8)
+            # print("SOME PARAMETERS: ", initial_ancilla_states)
+            # measurements = torch.randint(0, n_ancilla_modes,
+            #                              (n_individuals, n_success_measurements, n_ancilla_photons),
+            #                              device=device, dtype=torch.int8)
+            measurements = torch.ones((n_individuals, n_success_measurements, n_ancilla_photons), device=device, dtype=torch.int8)
+            # print("SOME PARAMETERS2: ", measurements)
         else:
             initial_ancilla_states = torch.tensor([[]], device=device)
             measurements = torch.tensor([[[]]], device=device)

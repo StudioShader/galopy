@@ -17,16 +17,18 @@ def rho_entropy(state):
     return tr_rho_sqrt(partial_trace(rho))
 
 
-CONST_ENTANGLEMENT_THRESHOLD = 0.05
+CONST_ENTANGLEMENT_THRESHOLD = 0.49
 
 
 def maximum_entanglement(matrix):
-    res_vector = [0, 0]
+    res_vector = torch.tensor([0, 0])
     for vector in matrix:
+        # print("what: ", vector)
         if res_vector[0] < CONST_ENTANGLEMENT_THRESHOLD and vector[0] > res_vector[0]:
             res_vector = vector
         if vector[0] > CONST_ENTANGLEMENT_THRESHOLD and vector[1] > res_vector[1]:
             res_vector = vector
+    # print(res_vector)
     return res_vector.tolist()
 
 
@@ -71,7 +73,17 @@ r_ = 1 / math.sqrt(2)
 # print(partial_trace(C1))
 # print(tr_rho_sqrt(partial_trace(C1)))
 # state = torch.tensor([r, 0., 0.5, 0.5])
-# state = torch.tensor([0.7753 + 0.6131j, -0.1514 - 0.0105j, 0.0000 + 0.0000j, 0.0000 + 0.0000j])
+state = torch.tensor([0.0625, 0.125, 0.1875, 0.25])
+# state = state/(state.abs().square().sum().sqrt())
+# print(state.abs().square().sum().sqrt())
+# print(state)
+# a = torch.tensor([[-0., -1.9353, -0.4605, -0.2917],
+#                    [ 0.1815, -1.0111,  0.9805, -1.5923],
+#                    [ 0.1062,  1.4581,  0.7759, -1.2344],
+#                    [-0.1830, -0.0313,  1.1908, -1.4757]])
+# b = torch.tensor([ 0.,  0.2930, -0.8113, -0.2308])
+# print(torch.div(a, b))
+
 # print("Entropy: ", rho_entropy(state))
 # print(state.abs().square().sum())
 # print(torch.matmul(state.reshape(-1, 1), state.reshape(1, -1)))
@@ -142,20 +154,24 @@ C2 = torch.tensor([[0.5 - 0.5j, 0.5 + 0.5j, 0., 0.],
 # print(torch.matmul(C2, ZX))
 # print(torch.matmul(torch.matmul(XZ, C1), ZX))
 # print(torch.matmul(torch.matmul(YZ, C1), ZY))
-# C_C = torch.tensor([[[0.0625, 0.125, 0.1875, 0.25],
-#                      [0.125, 0.1875, 0.25, 0.3125],
-#                      [0.1875, 0.25, 0.3125, 0.375],
-#                      [0.25, 0.3125, 0.375, 0.4375]],[[0.0625, 0.125, 0.1875, 0.25],
-#                                                       [0.125, 0.1875, 0.25, 0.3125],
-#                                                       [0.1875, 0.25, 0.3125, 0.375],
-#                                                       [0.25, 0.3125, 0.375, 0.4375]], [[0.0625, 0.125, 0.1875, 0.25],
-#                                                                                        [0.125, 0.1875, 0.25, 0.3125],
-#                                                                                        [0.1875, 0.25, 0.3125, 0.375],
-#                                                                                        [0.25, 0.3125, 0.375, 0.4375]],
-#                     [[0.0625, 0.125, 0.1875, 0.25],
-#                      [0.125, 0.1875, 0.25, 0.3125],
-#                      [0.1875, 0.25, 0.3125, 0.375],
-#                      [0.25, 0.3125, 0.375, 0.4375]]])
+C_C = torch.tensor([[[0.0625, 0.125, 0.1875, 0.25],
+                     [0.125, 0.1875, 0.25, 0.3125],
+                     [0.1875, 0.25, 0.3125, 0.375],
+                     [0.25, 0.3125, 0.375, 0.4375]],[[0.0625, 0.125, 0.1875, 0.25],
+                                                      [0.125, 0.1875, 0.25, 0.3125],
+                                                      [0.1875, 0.25, 0.3125, 0.375],
+                                                      [0.25, 0.3125, 0.375, 0.4375]], [[0.0625, 0.125, 0.1875, 0.25],
+                                                                                       [0.125, 0.1875, 0.25, 0.3125],
+                                                                                       [0.1875, 0.25, 0.3125, 0.375],
+                                                                                       [0.25, 0.3125, 0.375, 0.4375]],
+                    [[0.0625, 0.125, 0.1875, 0.25],
+                     [0.125, 0.1875, 0.25, 0.3125],
+                     [0.1875, 0.25, 0.3125, 0.375],
+                     [0.25, 0.3125, 0.375, 0.4375]]])
+some, _ = C_C.split([1, 3], dim=1)
+another = some.abs().square().sum(2).sqrt()
+# print(some)
+# print(some/another.unsqueeze(-1))
 # print(torch.matmul(XZ, C_C))
 # print(torch.matmul(C_C, XZ))
 # arr = np.array([[0.0349 - 0.0707j, 0.0000 + 0.0000j, -0.4772 - 0.2617j, 0.5187 + 0.3702j],

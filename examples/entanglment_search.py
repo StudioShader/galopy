@@ -6,10 +6,11 @@ if __name__ == "__main__":
     # Initialize parameters
     min_probability = 1. / 9.
     n_population = 2000
-    n_offsprings = 400
+    n_offsprings = 1800
     # n_mutated = 2000
-    n_elite = 800
-    n_generations = 300
+    n_elite = 200
+    n_generations = 180
+
 
     # Gate represented as a matrix
     matrix = np.array([[1., 0., 0., 0.],
@@ -29,8 +30,8 @@ if __name__ == "__main__":
     while exists("results/pure_entanglement/result" + str(file_number) + ".txt"):
         file_number += 1
     # Create an instance of search
-    search = CircuitSearch('cpu', matrix, input_basic_states=basic_states, depth=3,
-                           n_ancilla_modes=2, n_ancilla_photons=0, search_type="pure_entanglement",
+    search = CircuitSearch('cpu', matrix, input_basic_states=basic_states, depth=6,
+                           n_ancilla_modes=2, n_ancilla_photons=2, search_type="pure_entanglement",
                            entanglement_all_bases=True, file_number=file_number)
     # Launch the search!
     search.run(min_probability, n_generations, n_offsprings, n_elite)

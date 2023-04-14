@@ -160,7 +160,7 @@ class Circuit:
                 "phi": str(180. * bs_angles[counter][1] / pi),
                 "n": "undefined",
                 "input_type": "undefined",
-                "x": str(int(50 + 1500 * (right_edge + 1) / len(self.topology))),
+                "x": str(int(50 + 500 * (right_edge + 1) / len(self.topology))),
                 "y": str(int(40 + 85 * (self.n_modes - 1) - 42.5 * (i + j)))
             }
             beam_splitters.append(beam_splitter)
@@ -205,7 +205,7 @@ class Circuit:
                 "phi": str(180. * ps_angles[-1 - i] / pi),
                 "n": "undefined",
                 "input_type": "undefined",
-                "x": 1650,
+                "x": 750,
                 "y": 50 + 85 * i
             }
             phase_shifters.append(phase_shifter)
@@ -232,7 +232,7 @@ class Circuit:
                 "phi": "undefined",
                 "n": "-",
                 "input_type": "1",
-                "x": 1700,
+                "x": 800,
                 "y": 50 + 85 * i
             }
             photon_detections.append(detection)
