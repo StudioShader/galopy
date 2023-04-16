@@ -2,6 +2,7 @@ import torch
 import numpy as np
 from math import pi, factorial
 from time import time
+from os.path import exists
 from itertools import product
 from galopy.schmidt_decompose import rho_entropy, maximum_entanglement, CONST_ENTANGLEMENT_THRESHOLD
 from galopy.progress_bar import print_progress_bar
@@ -11,7 +12,7 @@ from galopy.population import RandomPopulation, FromFilePopulation
 class CircuitSearch:
     def __init__(self, device: str, matrix, input_basic_states, output_basic_states=None, depth=1,
                  n_ancilla_modes=0, n_ancilla_photons=0, n_success_measurements=1, search_type="probablities",
-                 file_number=0, entanglement_all_bases=False, entanglement_cut=0.01):
+                 file_number=0, entanglement_all_bases=False, entanglement_cut=0.01, white_list=None):
         """
         Algorithm searching a circuit.
         Parameters:
@@ -85,13 +86,17 @@ class CircuitSearch:
         # Init aux matricies
         self.ZX = torch.tensor(
             [[0.5 + 0j, 0.5 + 0j, 0.5 + 0j, 0.5 + 0j], [0.5 + 0j, -0.5 + 0j, 0.5 + 0j, -0.5 + 0j],
-             [0.5 + 0j, 0.5 + 0j, -0.5 + 0j, -0.5 + 0j], [0.5 + 0j, -0.5 + 0j, -0.5 + 0j, 0.5 + 0j]])
+             [0.5 + 0j, 0.5 + 0j, -0.5 + 0j, -0.5 + 0j], [0.5 + 0j, -0.5 + 0j, -0.5 + 0j, 0.5 + 0j]],
+            device=self.device)
         self.XZ = torch.inverse(self.ZX)
 
         self.ZY = torch.tensor(
             [[0.5 + 0j, 0.5 + 0j, 0.5 + 0j, 0.5 + 0j], [0. + 0.5j, 0. - 0.5j, 0. + 0.5j, 0. - 0.5j],
-             [0. + 0.5j, 0. + 0.5j, 0. - 0.5j, 0. - 0.5j], [-0.5 + 0j, 0.5 + 0j, 0.5 + 0j, -0.5 + 0j]])
+             [0. + 0.5j, 0. + 0.5j, 0. - 0.5j, 0. - 0.5j], [-0.5 + 0j, 0.5 + 0j, 0.5 + 0j, -0.5 + 0j]],
+            device=self.device)
         self.YZ = torch.inverse(self.ZY)
+
+        self.white_list = white_list
 
         # # Init indices for flexible slicing
         # self._start_idx_rz_angles = 0
@@ -201,7 +206,8 @@ class CircuitSearch:
         sums = new_transforms.abs().square().sum(2).sqrt()
         (values_max1, ind1) = sums.max(1)
         (values_min1, ind2) = sums.min(1)
-        basic_states_probabilities_match_X = torch.ones(transforms.size()[0]).sub(values_max1.sub(values_min1))
+        basic_states_probabilities_match_X = torch.ones(transforms.size()[0], device=self.device).sub(
+            values_max1.sub(values_min1))
         basic_states_probabilities_match_result = basic_states_probabilities_match_X
         minimum = values_min1
         new_transforms_Z = None
@@ -213,22 +219,25 @@ class CircuitSearch:
             sums_Z = new_transforms_Z.abs().square().sum(2).sqrt()
             (values_max2, ind1) = sums_Z.max(1)
             (values_min2, ind2) = sums_Z.min(1)
-            basic_states_probabilities_match_Z = torch.ones(transforms.size()[0]).sub(values_max2.sub(values_min2))
+            basic_states_probabilities_match_Z = torch.ones(transforms.size()[0], device=self.device).sub(
+                values_max2.sub(values_min2))
             new_transforms_Y = torch.matmul(torch.matmul(self.YZ, reshaped), self.ZY).transpose(1, 2)
             sums_Y = new_transforms_Y.abs().square().sum(2).sqrt()
             (values_max3, ind1) = sums_Y.max(1)
             (values_min3, ind2) = sums_Y.min(1)
-            basic_states_probabilities_match_Y = torch.ones(transforms.size()[0]).sub(values_max3.sub(values_min3))
+            basic_states_probabilities_match_Y = torch.ones(transforms.size()[0], device=self.device).sub(
+                values_max3.sub(values_min3))
             maximum = torch.maximum(values_max3, torch.maximum(values_max1, values_max2))
             minimum = torch.minimum(values_min3, torch.minimum(values_min1, values_min2))
-            basic_states_probabilities_match_result = torch.ones(transforms.size()[0]).sub(maximum.sub(minimum))
+            basic_states_probabilities_match_result = torch.ones(transforms.size()[0], device=self.device).sub(
+                maximum.sub(minimum))
 
         # calculate maximum entanglement of states
         # TODO: OPTIMIZE for torch
         normalized_states = new_transforms / sums.unsqueeze(-1)
         entanglement_entropies = torch.tensor(
             [(1. - min(min([(rho_entropy(vector).abs().item()) for vector in matrix]), 1.)) for matrix in
-             normalized_states])
+             normalized_states], device=self.device)
         if self.entanglement_all_bases:
             if new_transforms_Z is not None:
                 normalized_states_Z = new_transforms_Z / sums_Z.unsqueeze(-1)
@@ -262,7 +271,8 @@ class CircuitSearch:
                     normalized_vectors = torch.view_as_complex(torch.stack([x_real, x_imag], dim=-1))
                     # print("normalized_vectors size: ", normalized_vectors.size())
                     entropies = torch.tensor(
-                        [1. - (min(rho_entropy(state).abs().item(), 1.)) for state in normalized_vectors])
+                        [1. - (min(rho_entropy(state).abs().item(), 1.)) for state in normalized_vectors],
+                        device=self.device)
                     # print("entropies: ", entropies.size())
                     # print("probs: ", probs.size())
                     return basic_states_probabilities_match_result, entropies, probs
@@ -354,7 +364,8 @@ class CircuitSearch:
             population = RandomPopulation(n_individuals=n_population, depth=self.depth, n_modes=self.n_modes,
                                           n_ancilla_modes=self.n_ancilla_modes, n_state_photons=self.n_state_photons,
                                           n_ancilla_photons=self.n_ancilla_photons,
-                                          n_success_measurements=self.n_success_measurements, device=self.device)
+                                          n_success_measurements=self.n_success_measurements, device=self.device,
+                                          white_list=self.white_list)
         else:
             circuits = FromFilePopulation(source_file, device=self.device)
             n_circuits = circuits.n_individuals
@@ -364,7 +375,8 @@ class CircuitSearch:
                                               n_ancilla_modes=self.n_ancilla_modes,
                                               n_state_photons=self.n_state_photons,
                                               n_ancilla_photons=self.n_ancilla_photons,
-                                              n_success_measurements=self.n_success_measurements, device=self.device)
+                                              n_success_measurements=self.n_success_measurements, device=self.device,
+                                              white_list=self.white_list)
                 population = circuits + population
             else:
                 population = circuits
@@ -416,8 +428,11 @@ class CircuitSearch:
         N = self.file_number
         # Print result info
         print("Circuit:")
-        best[0].to_loqc_tech("results/" + str(self.search_type) + "/result_json" + str(N))
+        # print("WALAA: ", best[0].initial_ancilla_state)
+        # print("WALAA: ", best[0].measurements)
 
+        # best[0].to_loqc_tech("galopy/examples/results/" + str(self.search_type) + "/result_json" + str(N))
+        best[0].to_loqc_tech("results/" + str(self.search_type) + "/result_json" + str(N))
         # best[0].print()
         basic_states_probabilities_match, entanglement_entropies, pr = self.__get_fidelity_and_probability(best)
         transforms = best.construct_transforms(self.input_basic_states, self.output_basic_states)
@@ -426,5 +441,8 @@ class CircuitSearch:
         print("basic_states_probabilities_match: ", basic_states_probabilities_match[0].item())
         print("entanglement_entropies: ", entanglement_entropies[0].item())
         print(f"Processed {n_generations} generations in {time() - start_time:.2f} seconds")
-        best[0].to_text_file("results/" + str(self.search_type) + "/result" + str(N) + ".txt", transforms[0][0],
-                             basic_states_probabilities_match, entanglement_entropies, pr)
+        # best[0].to_text_file("galopy/examples/results/" + str(self.search_type) + "/result" + str(N) + ".txt", transforms[0][0],
+        #                      basic_states_probabilities_match, entanglement_entropies, pr, device = self.device)
+        best[0].to_text_file("results/" + str(self.search_type) + "/result" + str(N) + ".txt",
+                             transforms[0][0],
+                             basic_states_probabilities_match, entanglement_entropies, pr, device=self.device)

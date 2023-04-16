@@ -1,6 +1,7 @@
 import numpy as np
 import torch.linalg
 import math
+import random
 
 
 def tr_rho_sqrt(rho):
@@ -149,7 +150,7 @@ C1 = r_ * torch.tensor([[0. + 1j, 0. + 1j, 0., 0.],
 C2 = torch.tensor([[0.5 - 0.5j, 0.5 + 0.5j, 0., 0.],
                    [0., 0., 0., 0.],
                    [0, 0., 0, 0],
-                   [0., 0., 0.5 - 0.5j, -0.5 -0.5j]])
+                   [0., 0., 0.5 - 0.5j, -0.5 - 0.5j]])
 # vector2 = torch.
 # print(torch.matmul(C2, ZX))
 # print(torch.matmul(torch.matmul(XZ, C1), ZX))
@@ -157,7 +158,7 @@ C2 = torch.tensor([[0.5 - 0.5j, 0.5 + 0.5j, 0., 0.],
 C_C = torch.tensor([[[0.0625, 0.125, 0.1875, 0.25],
                      [0.125, 0.1875, 0.25, 0.3125],
                      [0.1875, 0.25, 0.3125, 0.375],
-                     [0.25, 0.3125, 0.375, 0.4375]],[[0.0625, 0.125, 0.1875, 0.25],
+                     [0.25, 0.3125, 0.375, 0.4375]], [[0.0625, 0.125, 0.1875, 0.25],
                                                       [0.125, 0.1875, 0.25, 0.3125],
                                                       [0.1875, 0.25, 0.3125, 0.375],
                                                       [0.25, 0.3125, 0.375, 0.4375]], [[0.0625, 0.125, 0.1875, 0.25],
@@ -259,14 +260,14 @@ vector = torch.tensor([r_4_1, r_4_2, r_4_2, r_4_1])
 
 array2 = torch.tensor([[1, 2, 3], [11, 22, 33], [111, 222, 333]])
 array3 = torch.tensor([[1, 2, 3], [11, 22, 33], [111, 222, 333]])
-array4 = torch.tensor([[[1, 1],
-                        [2, 2]],
+array4 = torch.tensor([[[1., 1.],
+                        [2., 2.]],
 
-                       [[11, 11],
-                        [22, 22]],
+                       [[11., 11.],
+                        [22., 22.]],
 
-                       [[111, 111],
-                        [222, 222]]])
+                       [[111., 111.],
+                        [222., 222.]]])
 
 # print(torch.stack((array2, array3), dim=2))
 # (a, b) = np.split(np.array([maximum_entanglement(matrix) for matrix in array4]), 2, axis=1)
@@ -274,3 +275,19 @@ array4 = torch.tensor([[[1, 1],
 # print(torch.tensor(b))
 # vector4 = torch.tensor([[1,2], [2, 3], [3, 4]])
 # print(array4/vector4.unsqueeze(-1))
+white_list = [0, math.acos(0), math.acos(1 / math.sqrt(2)), math.acos(1 / math.sqrt(3)), math.acos(1 / 2),
+              math.acos(1 / math.sqrt(5)), math.asin(1 / math.sqrt(3)), math.asin(1 / math.sqrt(4)),
+              math.asin(1 / math.sqrt(5))]
+# print(57.295779513 * torch.tensor(white_list))
+# print(random.choices(white_list, k=5))
+# mask = torch.tensor([[[False, True],
+#                       [False, True]],
+#
+#                      [[False, True],
+#                       [False, True]],
+#
+#                      [[False, True],
+#                       [True, True]]])
+# array4[mask] = torch.tensor(random.choices(white_list, k=mask.sum().item())).reshape(
+#             (mask.sum().item(),))
+# print(array4)

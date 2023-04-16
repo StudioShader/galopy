@@ -39,19 +39,19 @@ class Circuit:
     #     else:
     #         print(elements)
 
-    def to_text_file(self, filename, transform, basic_states_probabilities_match, entanglement_entropies, pr):
+    def to_text_file(self, filename, transform, basic_states_probabilities_match, entanglement_entropies, pr, device):
         # just for testing
         transform = transform.conj()
         # just for testing
 
         ZX = torch.tensor(
             [[0.5 + 0j, 0.5 + 0j, 0.5 + 0j, 0.5 + 0j], [0.5 + 0j, -0.5 + 0j, 0.5 + 0j, -0.5 + 0j],
-             [0.5 + 0j, 0.5 + 0j, -0.5 + 0j, -0.5 + 0j], [0.5 + 0j, -0.5 + 0j, -0.5 + 0j, 0.5 + 0j]])
+             [0.5 + 0j, 0.5 + 0j, -0.5 + 0j, -0.5 + 0j], [0.5 + 0j, -0.5 + 0j, -0.5 + 0j, 0.5 + 0j]], device = device)
         XZ = torch.inverse(ZX)
 
         ZY = torch.tensor(
             [[0.5 + 0j, 0.5 + 0j, 0.5 + 0j, 0.5 + 0j], [0. + 0.5j, 0. - 0.5j, 0. + 0.5j, 0. - 0.5j],
-             [0. + 0.5j, 0. + 0.5j, 0. - 0.5j, 0. - 0.5j], [-0.5 + 0j, 0.5 + 0j, 0.5 + 0j, -0.5 + 0j]])
+             [0. + 0.5j, 0. + 0.5j, 0. - 0.5j, 0. - 0.5j], [-0.5 + 0j, 0.5 + 0j, 0.5 + 0j, -0.5 + 0j]], device = device)
         YZ = torch.inverse(ZY)
         reshaped = transform.reshape(4, 4)
         # add result entropy add basic_prob_match add probs
