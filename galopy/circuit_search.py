@@ -258,11 +258,11 @@ class CircuitSearch:
                 # print("normalized_states_Z: ", normalized_states_Z)
                 entanglement_entropies_Z = torch.tensor(
                     [(1. - min(min([(rho_entropy(vector).abs().item()) for vector in matrix]), 1.)) for matrix in
-                     normalized_states_Z])
+                     normalized_states_Z], device=self.device)
                 entanglement_entropies_Z[entanglement_entropies_Z > 0.75] = 0.
                 entanglement_entropies_Y = torch.tensor(
                     [(1. - min(min([(rho_entropy(vector).abs().item()) for vector in matrix]), 1.)) for matrix in
-                     normalized_states_Y])
+                     normalized_states_Y], device=self.device)
                 entanglement_entropies_Y[entanglement_entropies_Z > 0.75] = 0.
                 # print("entanglement_entropies_Z: ", entanglement_entropies_Z)
                 entanglement_entropies = torch.maximum(entanglement_entropies, torch.maximum(entanglement_entropies_Z,
@@ -314,10 +314,10 @@ class CircuitSearch:
                     #     entanglements).resize(N), torch.tensor(probs).resize(N)
                 entanglement_entropies_Z = torch.tensor(
                     [(1. - min(min([(rho_entropy(vector).abs().item()) for vector in matrix]), 1.)) for matrix in
-                     normalized_states_Z])
+                     normalized_states_Z], device=self.device)
                 entanglement_entropies_Y = torch.tensor(
                     [(1. - min(min([(rho_entropy(vector).abs().item()) for vector in matrix]), 1.)) for matrix in
-                     normalized_states_Y])
+                     normalized_states_Y], device=self.device)
                 entanglement_entropies = torch.maximum(entanglement_entropies, torch.maximum(entanglement_entropies_Z,
                                                                                              entanglement_entropies_Y))
                 # entanglement_entropies
