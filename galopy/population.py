@@ -413,8 +413,10 @@ class Population:
     def mutate(self, mutation_probability):
         """Mutate individuals."""
         mask = torch.rand_like(self.bs_angles, device=self.device) < mutation_probability
-        # deltas = torch.rand(size=(mask.sum().item(),), device=self.device) * 0.5 * pi - 0.25 * pi
-        deltas = torch.tensor(random.choices(self.white_list, k=mask.sum().item()), device=self.device).reshape(
+        if self.white_list is None:
+            deltas = torch.rand(size=(mask.sum().item(),), device=self.device) * 0.5 * pi - 0.25 * pi
+        else:
+            deltas = torch.tensor(random.choices(self.white_list, k=mask.sum().item()), device=self.device).reshape(
             (mask.sum().item(),))
         # self.bs_angles[mask] += deltas
         self.bs_angles[mask] = deltas
@@ -499,7 +501,7 @@ class Population:
 class RandomPopulation(Population):
     def __init__(self, n_individuals=1, depth=1, n_modes=2, n_ancilla_modes=0, n_state_photons=0,
                  n_ancilla_photons=0, n_success_measurements=0, device='cpu', white_list=None):
-        print("WHITE: ", white_list)
+        # print("WHITE: ", white_list)
         # self.n_modes = n_modes
         # self.n_ancilla_modes = n_ancilla_modes
         #
@@ -518,8 +520,10 @@ class RandomPopulation(Population):
         # else:
         #     self.initial_ancilla_states = torch.tensor([[]], device=device)
         #     self.measurements = torch.tensor([[[]]], device=device)
-        # bs_angles = torch.rand(n_individuals, depth, 2, device=device) * tau / 2
-        bs_angles = torch.tensor(random.choices(white_list, k=n_individuals * depth * 2),
+        if white_list is None:
+            bs_angles = torch.rand(n_individuals, depth, 2, device=device) * tau / 2
+        else:
+            bs_angles = torch.tensor(random.choices(white_list, k=n_individuals * depth * 2),
                                  device=device).reshape((n_individuals, depth, 2))
         ps_angles = torch.rand(n_individuals, n_modes, device=device) * tau / 2
 

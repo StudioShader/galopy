@@ -99,7 +99,7 @@ state = torch.tensor([0.0625, 0.125, 0.1875, 0.25])
 #                         1.5876e-04 - 5.2754e-04j, 7.3414e-08 + 1.8853e-07j]]])
 #
 # new_array = array.reshape(4, 4).transpose(1, 0)
-# vector = torch.tensor([ 0.0000+0.0000j,  0.0000+0.0000j, -0.3654-0.4299j,  0.8169+0.1096j])
+# vector = torch.tensor([ 1./math.sqrt(2),0.,0.,1./math.sqrt(2)])
 # print(rho_entropy(vector))
 # print(rho_entropy(vector).item().real)
 # print(rho_entropy(vector).abs().item())

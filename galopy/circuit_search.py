@@ -197,6 +197,7 @@ class CircuitSearch:
     def __calculate_criteria(self, transforms):
         # just for testing
         transforms = transforms.conj()
+        # print("transforms: ",transforms)
         # just for testing
         # calculating probabilities of states on basis vectors ((1, 0, 0, 0) , (0, 1, 0, 0), ...) and other bases
         # then calculating the maximum difference of these probabilities for each transform in each bases
@@ -235,21 +236,38 @@ class CircuitSearch:
         # calculate maximum entanglement of states
         # TODO: OPTIMIZE for torch
         normalized_states = new_transforms / sums.unsqueeze(-1)
+        x_real = torch.nan_to_num(normalized_states.real, nan=0.)
+        x_imag = torch.nan_to_num(normalized_states.imag, nan=0.)
+        normalized_states = torch.view_as_complex(torch.stack([x_real, x_imag], dim=-1))
         entanglement_entropies = torch.tensor(
             [(1. - min(min([(rho_entropy(vector).abs().item()) for vector in matrix]), 1.)) for matrix in
              normalized_states], device=self.device)
+        entanglement_entropies[entanglement_entropies > 0.75] = 0.
         if self.entanglement_all_bases:
             if new_transforms_Z is not None:
+                # print("new_transforms_Z: ", new_transforms_Z)
                 normalized_states_Z = new_transforms_Z / sums_Z.unsqueeze(-1)
                 normalized_states_Y = new_transforms_Y / sums_Y.unsqueeze(-1)
+                x_real = torch.nan_to_num(normalized_states_Z.real, nan=0.)
+                x_imag = torch.nan_to_num(normalized_states_Z.imag, nan=0.)
+                normalized_states_Z = torch.view_as_complex(torch.stack([x_real, x_imag], dim=-1))
+                x_real = torch.nan_to_num(normalized_states_Y.real, nan=0.)
+                x_imag = torch.nan_to_num(normalized_states_Y.imag, nan=0.)
+                normalized_states_Y = torch.view_as_complex(torch.stack([x_real, x_imag], dim=-1))
+                # print("sums_Z: ", sums_Z)
+                # print("normalized_states_Z: ", normalized_states_Z)
                 entanglement_entropies_Z = torch.tensor(
                     [(1. - min(min([(rho_entropy(vector).abs().item()) for vector in matrix]), 1.)) for matrix in
                      normalized_states_Z])
+                entanglement_entropies_Z[entanglement_entropies_Z > 0.75] = 0.
                 entanglement_entropies_Y = torch.tensor(
                     [(1. - min(min([(rho_entropy(vector).abs().item()) for vector in matrix]), 1.)) for matrix in
                      normalized_states_Y])
+                entanglement_entropies_Y[entanglement_entropies_Z > 0.75] = 0.
+                # print("entanglement_entropies_Z: ", entanglement_entropies_Z)
                 entanglement_entropies = torch.maximum(entanglement_entropies, torch.maximum(entanglement_entropies_Z,
                                                                                              entanglement_entropies_Y))
+                return basic_states_probabilities_match_result, entanglement_entropies, minimum
             else:
                 # add optimizations
                 new_transforms_Z = torch.matmul(torch.matmul(self.XZ, reshaped), self.ZX).transpose(1, 2)
@@ -322,7 +340,10 @@ class CircuitSearch:
             first_fitness = torch.where(entanglement_entropies > self.entanglement_cut,
                                         100. * basic_states_probabilities_match,
                                         entanglement_entropies)
-            print(torch.where(first_fitness > 99., 1000. * probabilities, first_fitness))
+            # print("entanglement_entropies: ", entanglement_entropies)
+            # print("basic_states_probabilities_match: ", basic_states_probabilities_match)
+            # print("first_fitness: ", first_fitness)
+            # print(torch.where(first_fitness > 99., 1000. * probabilities, first_fitness))
             return torch.where(first_fitness > 99., 1000. * probabilities, first_fitness)
         elif self.search_type == "pure_entanglement":
             # print(torch.where(entanglement_entropies > CONST_ENTANGLEMENT_THRESHOLD, 1000. * probabilities,
@@ -395,7 +416,7 @@ class CircuitSearch:
             # population = parents
 
             children = parents.crossover(n_offsprings)
-            children.mutate(mutation_probability=0.1)
+            children.mutate(mutation_probability=0.2)
             population = parents + children
 
             # population = parents + parents.crossover(n_offsprings)

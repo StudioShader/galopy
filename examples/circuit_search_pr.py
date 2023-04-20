@@ -29,8 +29,8 @@ if __name__ == "__main__":
     while exists("results/probabilities/result" + str(file_number) + ".txt"):
         file_number += 1
     # Create an instance of search
-    search = CircuitSearch('cpu', matrix, input_basic_states=basic_states, depth=3,
-                           n_ancilla_modes=2, n_ancilla_photons=0, search_type="probabilities", file_number=file_number,
-                           entanglement_all_bases=True, entanglement_cut=0.2)
+    search = CircuitSearch('cpu', matrix, input_basic_states=basic_states, depth=6,
+                           n_ancilla_modes=2, n_ancilla_photons=2, search_type="probabilities", file_number=file_number,
+                           entanglement_all_bases=True, entanglement_cut=0.49)
     # Launch the search!
     search.run(min_probability, n_generations, n_offsprings, n_elite)

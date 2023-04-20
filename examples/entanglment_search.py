@@ -7,10 +7,10 @@ if __name__ == "__main__":
     # Initialize parameters
     min_probability = 1. / 9.
     n_population = 2000
-    n_offsprings = 1800
+    n_offsprings = 1500
     # n_mutated = 2000
-    n_elite = 200
-    n_generations = 10
+    n_elite = 1
+    n_generations = 5
 
 
     # Gate represented as a matrix
@@ -31,7 +31,7 @@ if __name__ == "__main__":
     white_list = [math.acos(0), math.acos(1 / math.sqrt(2)), math.acos(1 / math.sqrt(3)), math.acos(1 / 2),
                   math.acos(1 / math.sqrt(5)), math.asin(1 / math.sqrt(3)), math.asin(1 / math.sqrt(4)),
                   math.asin(1 / math.sqrt(5))]
-    while exists("results/pure_entanglement/result" + str(file_number) + ".txt"):
+    while exists("results/bell_state_search/result" + str(file_number) + ".txt"):
         file_number += 1
     # Create an instance of search
     search = CircuitSearch('cpu', matrix, input_basic_states=basic_states, depth=6,
