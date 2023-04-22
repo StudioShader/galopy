@@ -10,7 +10,7 @@ from galopy.circuit import Circuit
 
 class Population:
     def __init__(self, n_modes, n_ancilla_modes, n_state_photons, bs_angles, ps_angles, topologies,
-                 initial_ancilla_state, measurements, device='cpu', white_list=None):
+                 initial_ancilla_state, measurements, device='cpu', white_list=None, null_phases=False):
         self.device = device
 
         # TODO: проверка согласованности размерностей
@@ -26,6 +26,7 @@ class Population:
 
         self.bs_angles = bs_angles
         self.white_list = white_list
+        self.null_phases = null_phases
         self.ps_angles = ps_angles
         self.topologies = topologies
         self.initial_ancilla_states = initial_ancilla_state
@@ -303,7 +304,8 @@ class Population:
         """
         if self.white_list is None:
             self.bs_angles %= (tau / 2)
-        self.ps_angles %= (tau / 2)
+        if self.null_phases is False:
+            self.ps_angles %= (tau / 2)
 
         self.topologies %= self.n_work_modes
         x = self.topologies[..., 0]
@@ -405,7 +407,7 @@ class Population:
         measurements = self.measurements[moms, ...]
 
         result = Population(self.n_modes, self.n_ancilla_modes, self.n_state_photons, bs_angles, ps_angles, topologies,
-                            initial_ancilla_states, measurements, self.device, white_list=self.white_list)
+                            initial_ancilla_states, measurements, self.device, self.white_list, self.null_phases)
         result.set_precomputed(self)
 
         return result
@@ -421,9 +423,10 @@ class Population:
         # self.bs_angles[mask] += deltas
         self.bs_angles[mask] = deltas
 
-        mask = torch.rand_like(self.ps_angles, device=self.device) < mutation_probability
-        deltas = torch.rand(size=(mask.sum().item(),), device=self.device) * 0.5 * pi - 0.25 * pi
-        self.ps_angles[mask] += deltas
+        if self.null_phases is False:
+            mask = torch.rand_like(self.ps_angles, device=self.device) < mutation_probability
+            deltas = torch.rand(size=(mask.sum().item(),), device=self.device) * 0.5 * pi - 0.25 * pi
+            self.ps_angles[mask] += deltas
 
         mask = torch.rand_like(self.topologies, device=self.device, dtype=torch.float) < mutation_probability
         deltas = torch.randint(0, self.n_work_modes, size=(mask.sum().item(),), device=self.device)
@@ -460,7 +463,7 @@ class Population:
         # print("measurements: ", measurements)
 
         result = Population(self.n_modes, self.n_ancilla_modes, self.n_state_photons, bs_angles, ps_angles, topologies,
-                            initial_ancilla_states, measurements, self.device, self.white_list)
+                            initial_ancilla_states, measurements, self.device, self.white_list, self.null_phases)
         result.set_precomputed(self)
         # result.set_precomputed(self._mask_for_unitaries, self._permutation_matrix, self._normalization_matrix,
         #                        self._inverted_normalization_matrix)
@@ -475,7 +478,7 @@ class Population:
         measurements = torch.cat((self.measurements, other.measurements), 0)
 
         result = Population(self.n_modes, self.n_ancilla_modes, self.n_state_photons, bs_angles, ps_angles, topologies,
-                            initial_ancilla_states, measurements, self.device, self.white_list)
+                            initial_ancilla_states, measurements, self.device, self.white_list, self.null_phases)
         result.set_precomputed(self)
 
         return result
@@ -492,7 +495,7 @@ class Population:
                              initial_ancilla_states, measurements)
         else:
             result = Population(self.n_modes, self.n_ancilla_modes, self.n_state_photons, bs_angles, ps_angles,
-                                topologies, initial_ancilla_states, measurements, self.device, self.white_list)
+                                topologies, initial_ancilla_states, measurements, self.device, self.white_listm, self.null_phases)
             result.set_precomputed(self)
 
         return result
@@ -500,7 +503,7 @@ class Population:
 
 class RandomPopulation(Population):
     def __init__(self, n_individuals=1, depth=1, n_modes=2, n_ancilla_modes=0, n_state_photons=0,
-                 n_ancilla_photons=0, n_success_measurements=0, device='cpu', white_list=None):
+                 n_ancilla_photons=0, n_success_measurements=0, device='cpu', white_list=None, null_phases=False):
         # print("WHITE: ", white_list)
         # self.n_modes = n_modes
         # self.n_ancilla_modes = n_ancilla_modes
@@ -525,7 +528,11 @@ class RandomPopulation(Population):
         else:
             bs_angles = torch.tensor(random.choices(white_list, k=n_individuals * depth * 2),
                                  device=device).reshape((n_individuals, depth, 2))
-        ps_angles = torch.rand(n_individuals, n_modes, device=device) * tau / 2
+        print(null_phases, " ", null_phases)
+        if null_phases is False:
+            ps_angles = torch.rand(n_individuals, n_modes, device=device) * tau / 2
+        else:
+            ps_angles = torch.zeros(n_individuals, n_modes, device=device)
 
         topologies = torch.randint(0, n_modes, (n_individuals, depth, 2), device=device, dtype=torch.int8)
 
@@ -552,7 +559,7 @@ class RandomPopulation(Population):
             measurements = torch.tensor([[[]]], device=device)
 
         super().__init__(n_modes, n_ancilla_modes, n_state_photons, bs_angles, ps_angles, topologies,
-                         initial_ancilla_states, measurements, device, white_list)
+                         initial_ancilla_states, measurements, device, white_list, null_phases)
         super().precompute_extra()
 
 

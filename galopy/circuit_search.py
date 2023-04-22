@@ -12,7 +12,7 @@ from galopy.population import RandomPopulation, FromFilePopulation
 class CircuitSearch:
     def __init__(self, device: str, matrix, input_basic_states, output_basic_states=None, depth=1,
                  n_ancilla_modes=0, n_ancilla_photons=0, n_success_measurements=1, search_type="probablities",
-                 file_number=0, entanglement_all_bases=False, entanglement_cut=0.01, white_list=None):
+                 file_number=0, entanglement_all_bases=False, entanglement_cut=0.01, white_list=None, null_phases=False):
         """
         Algorithm searching a circuit.
         Parameters:
@@ -35,6 +35,7 @@ class CircuitSearch:
 
             search_type: for different calculations of criteria function
         """
+        self.null_phases = null_phases
         self.search_type = search_type
         self.file_number = file_number
         self.entanglement_all_bases = entanglement_all_bases
@@ -44,15 +45,15 @@ class CircuitSearch:
 
         self.device = device
 
-        self.matrix = torch.tensor(matrix, device=self.device, dtype=torch.complex64)
+        # self.matrix = torch.tensor(matrix, device=self.device, dtype=torch.complex64)
 
         input_basic_states, _ = torch.tensor(input_basic_states, device=self.device).sort()
         self.input_basic_states = input_basic_states + n_ancilla_modes
         # Number of input basic states
         self.n_input_basic_states = self.input_basic_states.shape[0]
 
-        if not matrix.shape[1] == self.n_input_basic_states:
-            raise Exception("Number of input basic states must be equal to the number of columns in transform matrix")
+        # if not matrix.shape[1] == self.n_input_basic_states:
+        #     raise Exception("Number of input basic states must be equal to the number of columns in transform matrix")
 
         if output_basic_states is None:
             self.output_basic_states = self.input_basic_states
@@ -62,8 +63,8 @@ class CircuitSearch:
         # Number of output basic states
         self.n_output_basic_states = self.output_basic_states.shape[0]
 
-        if not matrix.shape[0] == self.n_output_basic_states:
-            raise Exception("Number of output basic states must be equal to the number of rows in transform matrix")
+        # if not matrix.shape[0] == self.n_output_basic_states:
+        #     raise Exception("Number of output basic states must be equal to the number of rows in transform matrix")
 
         self.depth = depth
 
@@ -195,8 +196,14 @@ class CircuitSearch:
             raise Exception("Not implemented yet! Number of success measurements should be 1 so far")
 
     def __calculate_criteria(self, transforms):
-        # just for testing
+        # calculateconditional probabilities
+        b_prob_transforms = transforms
+        transforms, _ = transforms.split([4, 6], dim=2)
         transforms = transforms.conj()
+
+        # calculate b_probability
+        b_prob_transforms = b_prob_transforms.reshape(transforms.size()[0], 10, 4).transpose(1, 2)
+        b_sums = b_prob_transforms.abs().square().sum(2).sqrt()
         # print("transforms: ",transforms)
         # just for testing
         # calculating probabilities of states on basis vectors ((1, 0, 0, 0) , (0, 1, 0, 0), ...) and other bases
@@ -205,6 +212,10 @@ class CircuitSearch:
         reshaped = transforms.reshape(transforms.size()[0], 4, 4)
         new_transforms = reshaped.transpose(1, 2)
         sums = new_transforms.abs().square().sum(2).sqrt()
+        b_probs = sums.div(b_sums)
+        (b_values_min1, b_ind1) = b_probs.min(1)
+        b_values_min1 = torch.nan_to_num(b_values_min1, nan=0.)
+        # print(b_values_min1)
         (values_max1, ind1) = sums.max(1)
         (values_min1, ind2) = sums.min(1)
         basic_states_probabilities_match_X = torch.ones(transforms.size()[0], device=self.device).sub(
@@ -265,9 +276,9 @@ class CircuitSearch:
                      normalized_states_Y], device=self.device)
                 entanglement_entropies_Y[entanglement_entropies_Z > 0.75] = 0.
                 # print("entanglement_entropies_Z: ", entanglement_entropies_Z)
-                entanglement_entropies = torch.maximum(entanglement_entropies, torch.maximum(entanglement_entropies_Z,
-                                                                                             entanglement_entropies_Y))
-                return basic_states_probabilities_match_result, entanglement_entropies, minimum
+                # entanglement_entropies = torch.maximum(entanglement_entropies, torch.maximum(entanglement_entropies_Z,
+                #                                                                              entanglement_entropies_Y))
+                return basic_states_probabilities_match_result, entanglement_entropies, b_values_min1
             else:
                 # add optimizations
                 new_transforms_Z = torch.matmul(torch.matmul(self.XZ, reshaped), self.ZX).transpose(1, 2)
@@ -277,11 +288,18 @@ class CircuitSearch:
                 normalized_states_Z = new_transforms_Z / sums_Z.unsqueeze(-1)
                 normalized_states_Y = new_transforms_Y / sums_Y.unsqueeze(-1)
                 if self.search_type == "pure_entanglement":
-                    # print(reshaped)
-                    vectors, _ = reshaped.split([1, 3], dim=1)
+                    vectors, _ = reshaped.transpose(1, 2).split([1, 3], dim=1)
+
                     vectors = vectors.reshape(N, 4)
+                    # print("vectors: ", vectors)
                     # print("SIZE: ",vectors.size())
                     probs = vectors.abs().square().sum(1).sqrt()
+
+                    full_vectors, _ = b_prob_transforms.split([1, 3], dim=1)
+                    # print("full_vectors: ", full_vectors)
+                    b_probs = full_vectors.reshape(N, 10).abs().square().sum(1).sqrt()
+                    cond_probs = probs.div(b_probs)
+
                     # print("probs size: ", probs.size())
                     normalized_vectors = vectors / probs.unsqueeze(-1)
                     x_real = torch.nan_to_num(normalized_vectors.real, nan=0.)
@@ -293,7 +311,10 @@ class CircuitSearch:
                         device=self.device)
                     # print("entropies: ", entropies.size())
                     # print("probs: ", probs.size())
-                    return basic_states_probabilities_match_result, entropies, probs
+                    probs = torch.nan_to_num(probs, nan=0.)
+                    # print("entropies: ", entropies)
+                    entropies[entropies > 0.6] = 0.
+                    return basic_states_probabilities_match_result, entropies, cond_probs
                     # entanglement_entropies_Z = torch.tensor(
                     #     [([(rho_entropy(vector).abs().item()) for vector in matrix]) for matrix in
                     #      normalized_states_Z])
@@ -344,7 +365,9 @@ class CircuitSearch:
             # print("basic_states_probabilities_match: ", basic_states_probabilities_match)
             # print("first_fitness: ", first_fitness)
             # print(torch.where(first_fitness > 99., 1000. * probabilities, first_fitness))
-            return torch.where(first_fitness > 99., 1000. * probabilities, first_fitness)
+            # return torch.where(first_fitness > 99., 1000. * probabilities, first_fitness)
+            return torch.where(entanglement_entropies > self.entanglement_cut, 1000. * probabilities,
+                               entanglement_entropies)
         elif self.search_type == "pure_entanglement":
             # print(torch.where(entanglement_entropies > CONST_ENTANGLEMENT_THRESHOLD, 1000. * probabilities,
             #                   entanglement_entropies))
@@ -386,7 +409,7 @@ class CircuitSearch:
                                           n_ancilla_modes=self.n_ancilla_modes, n_state_photons=self.n_state_photons,
                                           n_ancilla_photons=self.n_ancilla_photons,
                                           n_success_measurements=self.n_success_measurements, device=self.device,
-                                          white_list=self.white_list)
+                                          white_list=self.white_list, null_phases=self.null_phases)
         else:
             circuits = FromFilePopulation(source_file, device=self.device)
             n_circuits = circuits.n_individuals
@@ -397,7 +420,7 @@ class CircuitSearch:
                                               n_state_photons=self.n_state_photons,
                                               n_ancilla_photons=self.n_ancilla_photons,
                                               n_success_measurements=self.n_success_measurements, device=self.device,
-                                              white_list=self.white_list)
+                                              white_list=self.white_list, null_phases=self.null_phases)
                 population = circuits + population
             else:
                 population = circuits

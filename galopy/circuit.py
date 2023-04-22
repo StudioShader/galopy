@@ -42,6 +42,12 @@ class Circuit:
     def to_text_file(self, filename, transform, basic_states_probabilities_match, entanglement_entropies, pr, device):
         # just for testing
         print("filename: ", filename)
+        b_transform = transform
+        b_transform = b_transform.reshape(10, 4).transpose(0, 1)
+        b_sums = b_transform.abs().square().sum(1).sqrt()
+        print("b_transform: ", b_transform)
+        print("b_sums: ", b_sums)
+        transform, _ = transform.reshape(10, 4).split([4, 6])
         transform = transform.conj()
         # just for testing
 
