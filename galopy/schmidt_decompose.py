@@ -18,7 +18,7 @@ def rho_entropy(state):
     return tr_rho_sqrt(partial_trace(rho))
 
 
-CONST_ENTANGLEMENT_THRESHOLD = 0.3
+CONST_ENTANGLEMENT_THRESHOLD = 0.497
 
 
 def maximum_entanglement(matrix):
@@ -284,8 +284,18 @@ array4 = torch.tensor([[[1., 1.],
 
                        [[111., 111.],
                         [222., 222.]]])
+array5 = torch.tensor([[[1., 1.],
+                        [2., 2.]],
 
+                       [[1., 11.],
+                        [22., 22.]],
+
+                       [[11., 111.],
+                        [222., 22.]]])
+# print(array4 - array5)
+# print(C2.repeat(3, 1, 1).abs().sum(2).sum(1))
 # print(torch.stack((array2, array3), dim=2))
+# print(torch.tensor([1, 1, 1]) * 10)
 # (a, b) = np.split(np.array([maximum_entanglement(matrix) for matrix in array4]), 2, axis=1)
 # print(torch.tensor(a))
 # print(torch.tensor(b))
@@ -307,3 +317,37 @@ white_list = [0, math.acos(0), math.acos(1 / math.sqrt(2)), math.acos(1 / math.s
 # array4[mask] = torch.tensor(random.choices(white_list, k=mask.sum().item())).reshape(
 #             (mask.sum().item(),))
 # print(array4)
+# a = -0.1062-8.8662e-02j
+# b = -0.0100-1.3184e-01j
+# print(abs(a))
+# print(abs(b))
+# print((abs(a))*(abs(a)))
+# print((abs(b))*(abs(b)))
+# print((abs(a))*(abs(a)) + (abs(b))*(abs(b)))
+# print(0.27241262793540955 * 0.27241262793540955)
+# print(1/0.07420863985867587)
+# print(2/0.07420863985867587)
+
+# iswap = np.array([[1., 0., 0., 0.],
+#                  [0., 0., 1.j, 0.],
+#                  [0., 1.j, 0., 0.],
+#                  [0., 0., 0., 1.]])
+# evalues, evectors = np.linalg.eig(iswap)
+# # Ensuring square root matrix exists
+# print(evalues)
+# print(evectors)
+# assert (evalues >= 0).all()
+# # sqrt_iswap = evectors * np.sqrt(evalues) @ np.linalg.inv(evectors)
+# sqrt_iswap = torch.tensor([[1., 0., 0., 0.],
+#                  [0., r_, r_*1.j, 0.],
+#                  [0., r_*1.j, r_, 0.],
+#                  [0., 0., 0., 1.]])
+# print(sqrt_iswap)
+#
+# matrix = sqrt_iswap
+# vector = torch.tensor([0. + 0.j, 1. + 0.j, 0. + 0.j, 0. + 0.j]).unsqueeze(-1)
+# result = torch.matmul(sqrt_iswap, vector)
+# print(rho_entropy(result))
+vector1 = torch.tensor([-r_ + r_*1.j, 0, 0, 0])
+vector2 = torch.tensor([-r_*1 , - r_*1j, 0, 0])
+# print(vector2.vdot(vector1).abs())

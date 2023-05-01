@@ -9,7 +9,7 @@ if __name__ == "__main__":
     n_offsprings = 400
     # n_mutated = 2000
     n_elite = 800
-    n_generations = 300
+    n_generations = 3000
 
     # Gate represented as a matrix
     matrix = np.array([[1., 0., 0., 0.],
@@ -37,6 +37,6 @@ if __name__ == "__main__":
     search = CircuitSearch('cpu', matrix, input_basic_states=basic_states, output_basic_states=output_basic_states,
                            depth=6,
                            n_ancilla_modes=2, n_ancilla_photons=2, search_type="probabilities", file_number=file_number,
-                           entanglement_all_bases=True, entanglement_cut=0.15)
+                           entanglement_all_bases=True, entanglement_cut=0.49)
     # Launch the search!
     search.run(min_probability, n_generations, n_offsprings, n_elite)

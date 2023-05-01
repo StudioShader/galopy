@@ -528,7 +528,6 @@ class RandomPopulation(Population):
         else:
             bs_angles = torch.tensor(random.choices(white_list, k=n_individuals * depth * 2),
                                  device=device).reshape((n_individuals, depth, 2))
-        print(null_phases, " ", null_phases)
         if null_phases is False:
             ps_angles = torch.rand(n_individuals, n_modes, device=device) * tau / 2
         else:
