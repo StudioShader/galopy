@@ -417,19 +417,19 @@ class CircuitSearch:
         basic_states_probabilities_match, entanglement_entropies, probabilities, conditional_probabilities = self.__get_fidelity_and_probability(
             population)
         if self.search_type == "probabilities" or self.search_type == "one_axis_probability":
-            print(basic_states_probabilities_match)
-            # first_fitness = torch.where(entanglement_entropies > self.entanglement_cut,
-            #                             basic_states_probabilities_match,
-            #                             entanglement_entropies)
-            # second_fitness = torch.where(first_fitness > 9.9,
-            #                             10000. * conditional_probabilities,
-            #                             first_fitness)
-            third_fitness = torch.where(entanglement_entropies > self.entanglement_cut,
-                                        1000. * conditional_probabilities,
+            # print(basic_states_probabilities_match)
+            first_fitness = torch.where(entanglement_entropies > self.entanglement_cut,
+                                        basic_states_probabilities_match,
                                         entanglement_entropies)
-            second_fitness = torch.where(third_fitness > 990.,
+            second_fitness = torch.where(first_fitness > 9.9,
+                                        10000. * conditional_probabilities,
+                                        first_fitness)
+            # third_fitness = torch.where(entanglement_entropies > self.entanglement_cut,
+            #                             1000. * conditional_probabilities,
+            #                             entanglement_entropies)
+            second_fitness = torch.where(second_fitness > 9900.,
                                          10000. * basic_states_probabilities_match,
-                                         third_fitness)
+                                         second_fitness)
             # print("entanglement_entropies: ", entanglement_entropies)
             # print("basic_states_probabilities_match: ", basic_states_probabilities_match)
             # print("first_fitness: ", first_fitness)

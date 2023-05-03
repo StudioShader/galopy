@@ -2,6 +2,7 @@ import numpy as np
 import torch.linalg
 import math
 import random
+# from population import RandomPopulation, FromFilePopulation
 
 
 def tr_rho_sqrt(rho):
@@ -18,7 +19,7 @@ def rho_entropy(state):
     return tr_rho_sqrt(partial_trace(rho))
 
 
-CONST_ENTANGLEMENT_THRESHOLD = 0.497
+CONST_ENTANGLEMENT_THRESHOLD = 0.2
 
 
 def maximum_entanglement(matrix):
@@ -348,6 +349,16 @@ white_list = [0, math.acos(0), math.acos(1 / math.sqrt(2)), math.acos(1 / math.s
 # vector = torch.tensor([0. + 0.j, 1. + 0.j, 0. + 0.j, 0. + 0.j]).unsqueeze(-1)
 # result = torch.matmul(sqrt_iswap, vector)
 # print(rho_entropy(result))
-vector1 = torch.tensor([-r_ + r_*1.j, 0, 0, 0])
-vector2 = torch.tensor([-r_*1 , - r_*1j, 0, 0])
-# print(vector2.vdot(vector1).abs())
+vector1 = torch.tensor([-0.216506, -0.125, 0, 0])
+vector2 = torch.tensor([0.15625, -0.270632, 0, 0])
+# print(vector1/(vector1.square().sum().sqrt()))
+# print(vector2/(vector2.square().sum().sqrt()))
+# vector3 = vector1/(vector1.square().sum().sqrt())
+# vector4 = vector2/(vector2.square().sum().sqrt())
+# vector5 = torch.tensor([-0.051472, 0.192097, 0.176472, 0.024409])
+# print(vector5/(vector5.square().sum().sqrt()))
+# vector6 = torch.tensor([-0.1928,  0.7195,  0.6609,  0.0914])
+# print(rho_entropy(vector6))
+# print(vector3.vdot(vector4).abs())
+# some5 = FromFilePopulation(file_name="results/aux_ress_from_loqc/overnighter.txt")
+# print(some5[0])
