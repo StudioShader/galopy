@@ -261,7 +261,7 @@ class CircuitSearch:
             # minimum = torch.minimum(values_min3, torch.minimum(values_min1, values_min2))
             # basic_states_probabilities_match_result = torch.ones(transforms.size()[0], device=self.device).sub(
             #     maximum.sub(minimum))
-            basic_states_probabilities_match_result = values_min1
+            # basic_states_probabilities_match_result = values_min1
             probabilities = b_prob_transforms.reshape(N, 4, 10).abs().square().sum(2).sqrt().reshape(N, 4).min(1)
 
             # Now for entanglement on just one vector
@@ -296,12 +296,26 @@ class CircuitSearch:
             S_I = torch.matmul(U, U_dagger)
             I_I = torch.eye(4, 4).repeat(N, 1, 1)
             D_I = (S_I - I_I).abs().sum(2).sum(1)
-            basic_states_probabilities_match_result = (torch.ones(N) * 10) - D_I
+            unitary_cond = (torch.ones(N) * 10) - D_I
 
-            # orthogonal condition
+            # basic_states_probabilities_match_result condition
+            (values_max1, ind1) = sums.max(1)
+            (values_min1, ind2) = sums.min(1)
+            new_transforms_X = torch.matmul(torch.matmul(self.XZ, reshaped), self.ZX).transpose(1, 2)
+            sums_X = new_transforms_X.abs().square().sum(2).sqrt()
+            (values_max2, ind1) = sums_X.max(1)
+            (values_min2, ind2) = sums_X.min(1)
+            new_transforms_Y = torch.matmul(torch.matmul(self.YZ, reshaped), self.ZY).transpose(1, 2)
+            sums_Y = new_transforms_Y.abs().square().sum(2).sqrt()
+            (values_max3, ind1) = sums_Y.max(1)
+            (values_min3, ind2) = sums_Y.min(1)
+            maximum = torch.maximum(values_max3, torch.maximum(values_max1, values_max2))
+            minimum = torch.minimum(values_min3, torch.minimum(values_min1, values_min2))
+            basic_states_probabilities_match_result = torch.ones(transforms.size()[0], device=self.device).sub(
+                maximum.sub(minimum))
 
 
-            return basic_states_probabilities_match_result, entanglement_entropies, values_min1, b_values_min1
+            return basic_states_probabilities_match_result, entanglement_entropies, values_min1, b_values_min1, unitary_cond
 
         # calculate maximum entanglement of states
         # TODO: OPTIMIZE for torch
@@ -414,29 +428,29 @@ class CircuitSearch:
     def __calculate_fitness(self, population):
         """Compute fitness for each individual in the given population."""
         # fidelities, probabilities = self.__get_fidelity_and_probability(population)
-        basic_states_probabilities_match, entanglement_entropies, probabilities, conditional_probabilities = self.__get_fidelity_and_probability(
+        basic_states_probabilities_match, entanglement_entropies, probabilities, conditional_probabilities, unitary_cond = self.__get_fidelity_and_probability(
             population)
         if self.search_type == "probabilities" or self.search_type == "one_axis_probability":
             # print(basic_states_probabilities_match)
             first_fitness = torch.where(entanglement_entropies > self.entanglement_cut,
-                                        basic_states_probabilities_match,
+                                        unitary_cond,
                                         entanglement_entropies)
-            second_fitness = torch.where(first_fitness > 9.9,
+            second_fitness = torch.where(first_fitness > 9.99,
                                         10000. * conditional_probabilities,
                                         first_fitness)
             # third_fitness = torch.where(entanglement_entropies > self.entanglement_cut,
             #                             1000. * conditional_probabilities,
             #                             entanglement_entropies)
-            second_fitness = torch.where(second_fitness > 9900.,
-                                         10000. * basic_states_probabilities_match,
+            third_fitness = torch.where(second_fitness > 9990.,
+                                         100000. * basic_states_probabilities_match,
                                          second_fitness)
             # print("entanglement_entropies: ", entanglement_entropies)
             # print("basic_states_probabilities_match: ", basic_states_probabilities_match)
             # print("first_fitness: ", first_fitness)
             # print(torch.where(first_fitness > 99., 1000. * probabilities, first_fitness))
             # return torch.where(first_fitness > 99., 1000. * probabilities, first_fitness)
-            return torch.where(second_fitness > 9900., 1000000. * probabilities,
-                               second_fitness)
+            return torch.where(third_fitness > 99990., 10000000. * probabilities,
+                               third_fitness)
         elif self.search_type == "pure_entanglement":
             first_fitness = torch.where(entanglement_entropies > CONST_ENTANGLEMENT_THRESHOLD,
                                         100. * conditional_probabilities,
@@ -524,7 +538,7 @@ class CircuitSearch:
             print_progress_bar(best_fitness, length=40, percentage=(i + 1.) / n_generations, reprint=True)
 
             # If circuit with high enough fitness is found, stop
-            if best_fitness > 10000. * 0.999:
+            if best_fitness > 10000000. * 0.999:
                 n_generations = i + 1
                 break
             # if best_fitness >= 100. * min_probability:
@@ -548,7 +562,7 @@ class CircuitSearch:
         # best[0].to_loqc_tech("galopy/examples/results/" + str(self.search_type) + "/result_json" + str(N))
         best[0].to_loqc_tech("results/" + str(self.search_type) + "/result_json" + str(N))
         # best[0].print()
-        basic_states_probabilities_match, entanglement_entropies, pr, cond_pr = self.__get_fidelity_and_probability(
+        basic_states_probabilities_match, entanglement_entropies, pr, cond_pr, unitary_cond = self.__get_fidelity_and_probability(
             best)
         transforms = best.construct_transforms(self.input_basic_states, self.output_basic_states)
         print("Transform: ", transforms[0])

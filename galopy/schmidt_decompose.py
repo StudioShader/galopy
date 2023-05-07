@@ -329,10 +329,10 @@ white_list = [0, math.acos(0), math.acos(1 / math.sqrt(2)), math.acos(1 / math.s
 # print(1/0.07420863985867587)
 # print(2/0.07420863985867587)
 
-# iswap = np.array([[1., 0., 0., 0.],
-#                  [0., 0., 1.j, 0.],
-#                  [0., 1.j, 0., 0.],
-#                  [0., 0., 0., 1.]])
+iswap = np.array([[1., 0., 0., 0.],
+                 [0., 0., 1.j, 0.],
+                 [0., 1.j, 0., 0.],
+                 [0., 0., 0., 1.]])
 # evalues, evectors = np.linalg.eig(iswap)
 # # Ensuring square root matrix exists
 # print(evalues)

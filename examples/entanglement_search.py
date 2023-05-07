@@ -10,7 +10,7 @@ if __name__ == "__main__":
     n_offsprings = 2200
     # n_mutated = 2000
     n_elite = 800
-    n_generations = 8000
+    n_generations = 100
 
 
     # Gate represented as a matrix
